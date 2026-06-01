@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+:root {
+  --bg-0: #07070a;
+  --bg-1: #0b0b10;
+  --surface: rgba(255, 255, 255, 0.05);
+  --surface-2: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.10);
+  --muted: rgba(255, 255, 255, 0.55);
+  --muted-2: rgba(255, 255, 255, 0.35);
+  --text: rgba(255, 255, 255, 0.88);
+
+  --primary: #0b74ff;
+  --primary-2: #0a6be8;
+  --purple: #7c3aed;
+  --purple-2: #a855f7;
+
+  --danger: #ef4444;
+
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.25);
+  --shadow-modal: 0 25px 80px rgba(0, 0, 0, 0.65);
+
+  --sidebar-gradient: linear-gradient(180deg, #0b74ff 0%, #7c3aed 100%);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: #000000;
+  color: var(--text);
+}
+
+/* Make native date/time/calendar picker icons more visible on dark theme */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.6);
+  opacity: 1;
+}
+
+/* WebKit spin/clear buttons for time inputs */
+input[type="time"]::-webkit-clear-button,
+input[type="time"]::-webkit-inner-spin-button {
+  filter: invert(1) brightness(1.6);
+  opacity: 1;
+}
+
+/* Fallback for Firefox: slightly increase contrast on date/time inputs */
+input[type="date"],
+input[type="time"] {
+  color: var(--text);
+}
