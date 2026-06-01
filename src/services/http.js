@@ -89,9 +89,20 @@ http.interceptors.response.use(
       }
     }
 
-    // Pass through real errors
+    if (err?.response?.status === 401) {
+      localStorage.removeItem("mih_admin_token");
+      localStorage.removeItem("mih_admin_user");
+      if (
+        typeof window !== "undefined" &&
+        !window.location.pathname.includes("/login")
+      ) {
+        window.location.assign("/login");
+      }
+    }
+
     const message =
       err?.response?.data?.message ||
+      err?.response?.data?.error ||
       err?.message ||
       "Something went wrong. Please try again.";
     return Promise.reject(new Error(message));

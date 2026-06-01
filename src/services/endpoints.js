@@ -1,9 +1,14 @@
 export const ENDPOINTS = {
   auth: {
-    login: "/auth/login",
-    me: "/auth/me",
-    logout: "/auth/logout",
+    login: "/admin/auth/login",
+    me: "/admin/auth/me",
+    logout: "/admin/auth/logout",
+    forgotPassword: "/admin/auth/forgot-password",
+    resetPassword: "/admin/auth/reset-password",
+    create: "/admin/auth/create",
   },
+
+  dashboard: "/dashboard/summary",
 
   matches: "/matches",
   users: "/users",
@@ -16,6 +21,13 @@ export const ENDPOINTS = {
 
   billing: "/billing/transactions",
   support: "/support/tickets",
+
+  messages: {
+    campaigns: "/messages/campaigns",
+    summary: "/messages/campaigns/summary",
+  },
+
+  uploads: "/uploads",
 
   settings: {
     basic: "/settings/basic",

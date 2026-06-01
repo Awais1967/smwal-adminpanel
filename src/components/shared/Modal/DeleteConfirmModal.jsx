@@ -11,8 +11,10 @@ export default function DeleteConfirmModal({
   description = "This will permanently remove this item from the platform. This action cannot be undone.",
   confirmText = "Delete",
   cancelText = "Cancel",
-  icon: Icon = FiTrash2,
+  icon = FiTrash2,
 }) {
+  const IconComponent = icon;
+
   return (
     <Modal
       open={open}
@@ -22,7 +24,7 @@ export default function DeleteConfirmModal({
       <div className="px-5 py-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#E7EFFF] text-[#0B67CD]">
-            <Icon size={18} />
+            <IconComponent size={18} />
           </div>
 
           <button

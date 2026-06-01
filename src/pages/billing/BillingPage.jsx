@@ -9,103 +9,69 @@ import StatusPill from "../../components/shared/StatusPill";
 import TableActions from "../../components/shared/DataTable/TableActions";
 import TransactionDetailsModal from "../../components/billing/modals/TransactionDetailsModal";
 import DeletePaymentModal from "../../components/billing/modals/DeletePaymentModal";
+import useTableData from "../../hooks/useTableData";
+import useToast from "../../hooks/useToastHook";
+import billingService from "../../services/billing.service";
 
-const BILLING_STORAGE_KEY = "mih_billing_rows_v1";
+const STATUS_OPTIONS = ["Paid", "Pending", "Failed"];
+const PAYMENT_TYPES = ["Subscription", "Mentorship", "Donation", "Event", "Course"];
 
-const DEFAULT_ROWS = [
-  {
-    id: "1",
-    user: "Martin K.",
-    txn: "TXN-92001",
-    email: "martin@email.com",
-    type: "Subscription",
-    amount: "$19",
-    status: "Paid",
-    date: "18 Jun, 2025",
-  },
-  {
-    id: "2",
-    user: "Sophia L.",
-    txn: "TXN-92002",
-    email: "sophia@email.com",
-    type: "Mentorship",
-    amount: "$49",
-    status: "Pending",
-    date: "20 Jun, 2025",
-  },
-  {
-    id: "3",
-    user: "James T.",
-    txn: "TXN-92003",
-    email: "james@email.com",
-    type: "Donation",
-    amount: "$16",
-    status: "Failed",
-    date: "22 Jun, 2025",
-  },
-];
-
-function readBillingFromStorage() {
-  try {
-    const raw = localStorage.getItem(BILLING_STORAGE_KEY);
-    if (!raw) return DEFAULT_ROWS;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : DEFAULT_ROWS;
-  } catch {
-    return DEFAULT_ROWS;
-  }
+function normalizeTransaction(row) {
+  const amount = Number(row.amount ?? 0);
+  return {
+    ...row,
+    txn: row.txn || row.transactionId,
+    type: row.type || row.paymentType,
+    amount: Number.isFinite(amount) ? `$${amount}` : row.amount,
+    date: row.date || row.paymentDate,
+  };
 }
 
 export default function BillingPage() {
+  const toast = useToast();
   const [donutRange, setDonutRange] = useState("30");
   const [barsRange, setBarsRange] = useState("6");
-
-  // Generate pie data based on range
-  const pie = useMemo(() => {
-    const baseData = [
-      { name: "Subscriptions", value: 45, trend: "up" },
-      { name: "Events", value: 30, trend: "up" },
-      { name: "Donations", value: 25, trend: "down" },
-    ];
-
-    // Vary the values slightly based on range for visual feedback
-    const multiplier = donutRange === "30" ? 1 : 1.2;
-    return baseData.map((item) => ({
-      ...item,
-      value: Math.round(item.value * multiplier),
-    }));
-  }, [donutRange]);
-
-  // Generate bars data based on range - show different months
-  const bars = useMemo(() => {
-    const allMonths = [
-      { month: "Jan", Subscriptions: 6000, Events: 3000, Donations: 2200 },
-      { month: "Feb", Subscriptions: 5200, Events: 3700, Donations: 1600 },
-      { month: "Mar", Subscriptions: 4200, Events: 3100, Donations: 4800 },
-      { month: "Apr", Subscriptions: 5200, Events: 3800, Donations: 2200 },
-      { month: "May", Subscriptions: 4100, Events: 2900, Donations: 1700 },
-      { month: "Jun", Subscriptions: 4300, Events: 3100, Donations: 1100 },
-      { month: "Jul", Subscriptions: 5500, Events: 3300, Donations: 2400 },
-      { month: "Aug", Subscriptions: 4900, Events: 3200, Donations: 1900 },
-      { month: "Sep", Subscriptions: 5800, Events: 3900, Donations: 2600 },
-      { month: "Oct", Subscriptions: 5100, Events: 3400, Donations: 2000 },
-      { month: "Nov", Subscriptions: 5900, Events: 4000, Donations: 2700 },
-      { month: "Dec", Subscriptions: 6200, Events: 4200, Donations: 3000 },
-    ];
-
-    // Show 6 months for "Last 6 Months", 12 months for "Last 12 Months"
-    return barsRange === "6" ? allMonths.slice(-6) : allMonths;
-  }, [barsRange]);
-
-  const [rows, setRows] = useState(() => readBillingFromStorage());
+  const [pie, setPie] = useState([]);
+  const [bars, setBars] = useState([]);
 
   const [activeTxn, setActiveTxn] = useState(null);
   const [viewOpen, setViewOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  const fetchTransactions = useCallback(async (params) => {
+    const data = await billingService.list(params);
+    return { ...data, items: data.items.map(normalizeTransaction) };
+  }, []);
+
+  const table = useTableData({
+    fetcher: fetchTransactions,
+    initialPageSize: 7,
+    initialFilters: { status: "All", paymentType: "All" },
+  });
+
+  const rows = table.items;
+
   useEffect(() => {
-    localStorage.setItem(BILLING_STORAGE_KEY, JSON.stringify(rows));
-  }, [rows]);
+    let active = true;
+    billingService
+      .revenueBreakdown({ range: donutRange })
+      .then((data) => active && setPie(Array.isArray(data) ? data : []))
+      .catch((error) => toast.error(error.message));
+    return () => {
+      active = false;
+    };
+  }, [donutRange, toast]);
+
+  useEffect(() => {
+    let active = true;
+    billingService
+      .revenueOverview({ range: barsRange })
+      .then((data) => active && setBars(Array.isArray(data) ? data : []))
+      .catch((error) => toast.error(error.message));
+    return () => {
+      active = false;
+    };
+  }, [barsRange, toast]);
 
   const mapRowToTransaction = useCallback((row) => {
     if (!row) return null;
@@ -132,11 +98,17 @@ export default function BillingPage() {
   }, []);
 
   const openView = useCallback(
-    (row) => {
+    async (row) => {
       setActiveTxn(mapRowToTransaction(row));
       setViewOpen(true);
+      try {
+        const transaction = await billingService.getById(row.id);
+        setActiveTxn(mapRowToTransaction(normalizeTransaction(transaction)));
+      } catch (error) {
+        toast.error(error.message);
+      }
     },
-    [mapRowToTransaction],
+    [mapRowToTransaction, toast],
   );
 
   const openDelete = useCallback(
@@ -147,12 +119,36 @@ export default function BillingPage() {
     [mapRowToTransaction],
   );
 
-  const handleConfirmDelete = useCallback(() => {
+  const handleConfirmDelete = useCallback(async () => {
     if (!activeTxn) return;
-    setRows((prev) => prev.filter((r) => r.id !== activeTxn.id));
-    setDeleteOpen(false);
-    setActiveTxn(null);
-  }, [activeTxn]);
+    try {
+      await billingService.remove(activeTxn.id);
+      toast.success("Transaction deleted.");
+      setDeleteOpen(false);
+      setActiveTxn(null);
+      table.refresh();
+    } catch (error) {
+      toast.error(error.message);
+    }
+  }, [activeTxn, table, toast]);
+
+  const setFilter = useCallback(
+    (key, value) => table.setFilters((prev) => ({ ...prev, [key]: value })),
+    [table],
+  );
+
+  const summary = useMemo(() => {
+    const paidRows = rows.filter((row) => row.status === "Paid");
+    const revenue = paidRows.reduce((sum, row) => {
+      const amount = String(row.amount || "").replace(/[^0-9.-]/g, "");
+      return sum + (Number(amount) || 0);
+    }, 0);
+    return {
+      revenue,
+      subscriptions: rows.filter((row) => row.type === "Subscription").length,
+      donations: rows.filter((row) => row.type === "Donation").length,
+    };
+  }, [rows]);
 
   const columns = useMemo(
     () => [
@@ -190,22 +186,22 @@ export default function BillingPage() {
           <MetricCard
             icon={<FiDollarSign />}
             label="Total Revenue"
-            value="$12,480"
+            value={`$${summary.revenue}`}
           />
           <MetricCard
             icon={<FiUsers />}
             label="Subscriptions Active"
-            value="86"
+            value={summary.subscriptions}
           />
           <MetricCard
             icon={<FiGift />}
             label="Donations Received"
-            value="$3,200"
+            value={summary.donations}
           />
           <MetricCard
             icon={<FiTrendingUp />}
             label="Revenue This Month"
-            value="$2,140"
+            value={table.total}
           />
         </div>
       </div>
@@ -230,7 +226,28 @@ export default function BillingPage() {
         searchPlaceholder="Search by user, payment type, transaction ID, or email"
         columns={columns}
         rows={rows}
-        total={rows.length}
+        total={table.total}
+        manual
+        loading={table.loading}
+        error={table.error}
+        page={table.page}
+        pageSize={table.pageSize}
+        onPageChange={table.setPage}
+        onPageSizeChange={table.setPageSize}
+        searchValue={table.search}
+        onSearchChange={table.setSearch}
+        statusValue={table.filters.status}
+        onStatusChange={(value) => setFilter("status", value)}
+        countryValue={table.filters.paymentType}
+        onCountryChange={(value) => setFilter("paymentType", value)}
+        countryOptions={[
+          { value: "All", label: "All Types" },
+          ...PAYMENT_TYPES.map((value) => ({ value, label: value })),
+        ]}
+        statusOptions={[
+          { value: "All", label: "All" },
+          ...STATUS_OPTIONS.map((value) => ({ value, label: value })),
+        ]}
       />
 
       <TransactionDetailsModal

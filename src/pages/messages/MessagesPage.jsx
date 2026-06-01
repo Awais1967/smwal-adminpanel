@@ -3,8 +3,8 @@ import MessagesSummary from "../../components/messages/MessagesSummary";
 import MessagesTable from "../../components/messages/MessagesTable";
 import CampaignComposerModal from "../../components/messages/modals/CampaignComposerModal";
 import DeleteCampaignModal from "../../components/messages/modals/DeleteCampaignModal";
-
-const MESSAGES_STORAGE_KEY = "mih_messages_rows_v1";
+import useToast from "../../hooks/useToastHook";
+import messagesService from "../../services/messages.service";
 
 const DEFAULT_MESSAGE =
   "Hi {first_name}, we'd love to help you find your match. Here's what's new for your area and profile.";
@@ -294,28 +294,6 @@ function buildDefaultRows() {
   return seededRows.concat(generatedRows).slice(0, 48);
 }
 
-function readMessagesFromStorage() {
-  try {
-    const raw = localStorage.getItem(MESSAGES_STORAGE_KEY);
-    if (!raw) return buildDefaultRows();
-
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return buildDefaultRows();
-
-    return parsed.map((campaign, index) =>
-      normalizeCampaign(
-        {
-          ...campaign,
-          message: campaign.message || DEFAULT_MESSAGE,
-        },
-        index,
-      ),
-    );
-  } catch {
-    return buildDefaultRows();
-  }
-}
-
 function formatCompactNumber(value) {
   if (value >= 1000) {
     return `${(value / 1000).toFixed(1)}k`;
@@ -369,15 +347,37 @@ function buildCampaignRecord(values, action, existingCampaign) {
 }
 
 export default function MessagesPage() {
-  const [rows, setRows] = useState(() => readMessagesFromStorage());
+  const toast = useToast();
+  const [rows, setRows] = useState([]);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerMode, setComposerMode] = useState("create");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [activeCampaign, setActiveCampaign] = useState(null);
 
+  const loadCampaigns = React.useCallback(async () => {
+    try {
+      const data = await messagesService.list({ page: 1, pageSize: 100 });
+      setRows(
+        data.items.map((campaign, index) =>
+          normalizeCampaign(
+            {
+              ...campaign,
+              message: campaign.message || DEFAULT_MESSAGE,
+            },
+            index,
+          ),
+        ),
+      );
+    } catch (error) {
+      toast.error(error.message);
+      setRows(import.meta.env.VITE_API_URL ? [] : buildDefaultRows());
+    }
+  }, [toast]);
+
   useEffect(() => {
-    localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(rows));
-  }, [rows]);
+    const id = setTimeout(loadCampaigns, 0);
+    return () => clearTimeout(id);
+  }, [loadCampaigns]);
 
   const stats = useMemo(() => {
     const totalRecipients = rows.reduce(
@@ -414,10 +414,16 @@ export default function MessagesPage() {
           setComposerMode("create");
           setComposerOpen(true);
         }}
-        onViewCampaign={(campaign) => {
+        onViewCampaign={async (campaign) => {
           setActiveCampaign(campaign);
           setComposerMode("view");
           setComposerOpen(true);
+          try {
+            const detail = await messagesService.getById(campaign.id);
+            setActiveCampaign(normalizeCampaign(detail, 0));
+          } catch (error) {
+            toast.error(error.message);
+          }
         }}
         onEditCampaign={(campaign) => {
           setActiveCampaign(campaign);
@@ -438,24 +444,22 @@ export default function MessagesPage() {
           setComposerOpen(false);
           setActiveCampaign(null);
         }}
-        onSubmit={(values, action) => {
-          if (composerMode === "edit" && activeCampaign) {
-            setRows((currentRows) =>
-              currentRows.map((row) =>
-                row.id === activeCampaign.id
-                  ? buildCampaignRecord(values, action, activeCampaign)
-                  : row,
-              ),
-            );
-          } else {
-            setRows((currentRows) => [
-              buildCampaignRecord(values, action, null),
-              ...currentRows,
-            ]);
+        onSubmit={async (values, action) => {
+          const payload = buildCampaignRecord(values, action, activeCampaign);
+          try {
+            if (composerMode === "edit" && activeCampaign) {
+              await messagesService.update(activeCampaign.id, payload);
+              toast.success("Campaign updated.");
+            } else {
+              await messagesService.create(payload);
+              toast.success("Campaign created.");
+            }
+            setComposerOpen(false);
+            setActiveCampaign(null);
+            loadCampaigns();
+          } catch (error) {
+            toast.error(error.message);
           }
-
-          setComposerOpen(false);
-          setActiveCampaign(null);
         }}
       />
 
@@ -465,12 +469,17 @@ export default function MessagesPage() {
           setDeleteOpen(false);
           setActiveCampaign(null);
         }}
-        onConfirm={() => {
-          setRows((currentRows) =>
-            currentRows.filter((row) => row.id !== activeCampaign?.id),
-          );
-          setDeleteOpen(false);
-          setActiveCampaign(null);
+        onConfirm={async () => {
+          if (!activeCampaign?.id) return;
+          try {
+            await messagesService.remove(activeCampaign.id);
+            toast.success("Campaign deleted.");
+            setDeleteOpen(false);
+            setActiveCampaign(null);
+            loadCampaigns();
+          } catch (error) {
+            toast.error(error.message);
+          }
         }}
       />
     </div>

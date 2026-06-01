@@ -1,17 +1,20 @@
 import http from "./http";
 import { ENDPOINTS } from "./endpoints";
+import { flattenTableParams, normalizeListResponse } from "./apiUtils";
 
 const lessonsService = {
   async list(params) {
-    const { data } = await http.get(ENDPOINTS.lessons, { params });
-    return data;
+    const { data } = await http.get(ENDPOINTS.lessons, {
+      params: flattenTableParams(params),
+    });
+    return normalizeListResponse(data);
   },
   async listByCourse(courseId, params) {
     const { data } = await http.get(
       `${ENDPOINTS.courses}/${courseId}/lessons`,
-      { params },
+      { params: flattenTableParams(params) },
     );
-    return data;
+    return normalizeListResponse(data);
   },
   async create(payload) {
     const { data } = await http.post(ENDPOINTS.lessons, payload);

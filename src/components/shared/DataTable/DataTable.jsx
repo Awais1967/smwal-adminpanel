@@ -63,15 +63,46 @@ export default function DataTable({
   total = 0,
   entityName = "Matches", // for footer text
   primaryAction = null,
+  loading = false,
+  error = null,
+  manual = false,
+  searchValue,
+  onSearchChange,
+  countryValue,
+  onCountryChange,
+  statusValue,
+  onStatusChange,
+  page: controlledPage,
+  pageSize: controlledPageSize,
+  onPageChange,
+  onPageSizeChange,
+  countryOptions: providedCountryOptions,
+  statusOptions: providedStatusOptions,
 }) {
   const defaultPerPage = 7;
-  const [perPage, setPerPage] = useState(defaultPerPage);
-  const [page, setPage] = useState(1);
+  const [localPerPage, setLocalPerPage] = useState(defaultPerPage);
+  const [localPage, setLocalPage] = useState(1);
 
   // (UI-only states; hook these to parent later if needed)
-  const [country, setCountry] = useState("All");
-  const [status, setStatus] = useState("All");
-  const [q, setQ] = useState("");
+  const [localCountry, setLocalCountry] = useState("All");
+  const [localStatus, setLocalStatus] = useState("All");
+  const [localQ, setLocalQ] = useState("");
+
+  const perPage = controlledPageSize ?? localPerPage;
+  const page = controlledPage ?? localPage;
+  const country = countryValue ?? localCountry;
+  const status = statusValue ?? localStatus;
+  const q = searchValue ?? localQ;
+
+  const setPage = onPageChange ?? setLocalPage;
+  const setPerPage = onPageSizeChange ?? setLocalPerPage;
+  const setCountry = onCountryChange ?? setLocalCountry;
+  const setStatus = onStatusChange ?? setLocalStatus;
+  const setQ = onSearchChange ?? setLocalQ;
+  const changePage = (next) => {
+    const value = typeof next === "function" ? next(page) : next;
+    setPage(value);
+  };
 
   const statusOptions = useMemo(() => {
     const values = Array.from(
@@ -88,11 +119,12 @@ export default function DataTable({
       ),
     );
 
-    return [
+    const generated = [
       { value: "All", label: "All" },
       ...values.map((v) => ({ value: v, label: v })),
     ];
-  }, [rows]);
+    return providedStatusOptions || generated;
+  }, [providedStatusOptions, rows]);
 
   const countryOptions = useMemo(() => {
     const byKey = new Map();
@@ -107,13 +139,16 @@ export default function DataTable({
       a.localeCompare(b),
     );
 
-    return [
+    const generated = [
       { value: "All", label: "All Country" },
       ...values.map((v) => ({ value: v, label: v })),
     ];
-  }, [rows]);
+    return providedCountryOptions || generated;
+  }, [providedCountryOptions, rows]);
 
   const filteredRows = useMemo(() => {
+    if (manual) return rows;
+
     const query = q.trim().toLowerCase();
 
     return rows.filter((row) => {
@@ -135,24 +170,30 @@ export default function DataTable({
 
       return matchesSearch && matchesStatus && matchesCountry;
     });
-  }, [rows, q, status, country]);
+  }, [country, manual, q, rows, status]);
 
   const hasActiveFilter =
     q.trim().length > 0 ||
     status !== "All" ||
     country !== "All";
 
-  const shownTotal = hasActiveFilter ? filteredRows.length : total || rows.length;
+  const shownTotal = manual
+    ? total || rows.length
+    : hasActiveFilter
+      ? filteredRows.length
+      : total || rows.length;
 
   const pages = useMemo(() => {
-    const st = filteredRows.length;
+    const st = manual ? shownTotal : filteredRows.length;
     const p = Math.max(1, Math.ceil(st / perPage));
     return p;
-  }, [filteredRows.length, perPage]);
+  }, [filteredRows.length, manual, perPage, shownTotal]);
 
   const safePage = Math.min(page, pages);
   const start = (safePage - 1) * perPage;
-  const pagedRows = filteredRows.slice(start, start + perPage);
+  const pagedRows = manual
+    ? filteredRows
+    : filteredRows.slice(start, start + perPage);
 
   const pageItems = useMemo(
     () => buildPagination(safePage, pages),
@@ -175,7 +216,7 @@ export default function DataTable({
             value={q}
             onChange={(e) => {
               setQ(e.target.value);
-              setPage(1);
+              changePage(1);
             }}
             autoComplete="off"
             name="table-search"
@@ -192,7 +233,7 @@ export default function DataTable({
             value={country}
             onChange={(v) => {
               setCountry(v);
-              setPage(1);
+              changePage(1);
             }}
           >
             {countryOptions.map((o) => (
@@ -208,7 +249,7 @@ export default function DataTable({
             value={status}
             onChange={(v) => {
               setStatus(v);
-              setPage(1);
+              changePage(1);
             }}
           >
             {statusOptions.map((o) => (
@@ -248,7 +289,36 @@ export default function DataTable({
             </thead>
 
             <tbody>
-              {pagedRows.map((r, idx) => (
+              {loading ? (
+                <tr>
+                  <td
+                    colSpan={columns.length}
+                    className="px-6 py-12 text-center text-white/55"
+                  >
+                    Loading...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td
+                    colSpan={columns.length}
+                    className="px-6 py-12 text-center text-[#FF6B6B]"
+                  >
+                    {error?.message || "Unable to load data."}
+                  </td>
+                </tr>
+              ) : pagedRows.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={columns.length}
+                    className="px-6 py-12 text-center text-white/55"
+                  >
+                    No records found.
+                  </td>
+                </tr>
+              ) : null}
+
+              {!loading && !error && pagedRows.map((r, idx) => (
                 <tr
                   key={r.id ?? idx}
                   className="border-b border-white/5 last:border-b-0 hover:bg-white/2"
@@ -291,7 +361,7 @@ export default function DataTable({
             value={perPage}
             onChange={(v) => {
               setPerPage(Number(v));
-              setPage(1);
+              changePage(1);
             }}
           >
             <option value={5}>Rows Per Page: 5</option>
@@ -305,7 +375,7 @@ export default function DataTable({
         <div className="flex items-center gap-2">
           <button
             disabled={safePage <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            onClick={() => changePage((p) => Math.max(1, p - 1))}
             className={[
               "h-9 w-9 rounded-lg grid place-items-center border",
               "bg-[#1D4ED8] border-[#1D4ED8] text-white",
@@ -327,7 +397,7 @@ export default function DataTable({
             ) : (
               <button
                 key={it}
-                onClick={() => setPage(it)}
+                onClick={() => changePage(it)}
                 className={[
                   "h-9 min-w-9 rounded-lg border px-3 text-sm",
                   safePage === it
@@ -342,7 +412,7 @@ export default function DataTable({
 
           <button
             disabled={safePage >= pages}
-            onClick={() => setPage((p) => Math.min(pages, p + 1))}
+            onClick={() => changePage((p) => Math.min(pages, p + 1))}
             className={[
               "h-9 w-9 rounded-lg grid place-items-center border",
               "bg-[#1D4ED8] border-[#1D4ED8] text-white",

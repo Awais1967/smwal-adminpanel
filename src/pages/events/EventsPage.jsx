@@ -1,5 +1,5 @@
 // src/pages/events/EventsPage.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { FiCalendar, FiUserCheck, FiGlobe, FiEdit } from "react-icons/fi";
 import MetricCard from "../../components/shared/MetricCard";
 import DataTable from "../../components/shared/DataTable/DataTable";
@@ -10,47 +10,12 @@ import CreateEventModal from "../../components/events/modals/CreateEventModal";
 import EditEventModal from "../../components/events/modals/EditEventModal";
 import ViewEventModal from "../../components/events/modals/ViewEventModal";
 import DeleteEventModal from "../../components/events/modals/DeleteEventModal";
+import useTableData from "../../hooks/useTableData";
+import useToast from "../../hooks/useToastHook";
+import eventsService from "../../services/events.service";
 
-const EVENTS_STORAGE_KEY = "mih_events_rows_v1";
-
-const DEFAULT_ROWS = [
-  {
-    id: "1",
-    name: "Community Hangout",
-    location: "Manchester, UK",
-    fee: "$15",
-    status: "Upcoming",
-    regs: 18,
-    date: "18 Jun, 2025",
-  },
-  {
-    id: "2",
-    name: "Tech Conference",
-    location: "San Francisco, USA",
-    fee: "$299",
-    status: "Upcoming",
-    regs: 500,
-    date: "22 Sep, 2025",
-  },
-  {
-    id: "3",
-    name: "Art Expo",
-    location: "New York, USA",
-    fee: "$45",
-    status: "Draft",
-    regs: 200,
-    date: "30 Apr, 2025",
-  },
-  {
-    id: "4",
-    name: "Wellness Retreat",
-    location: "Bali, Indonesia",
-    fee: "$450",
-    status: "Closed",
-    regs: 30,
-    date: "12 Nov, 2025",
-  },
-];
+const STATUS_OPTIONS = ["Upcoming", "Draft", "Closed"];
+const COUNTRY_OPTIONS = ["UK", "USA", "France", "Germany", "Canada", "Indonesia"];
 
 function parseLocation(location) {
   const parts = String(location || "")
@@ -103,29 +68,28 @@ function normalizeEventRow(row, index = 0) {
   };
 }
 
-function readEventsFromStorage() {
-  try {
-    const raw = localStorage.getItem(EVENTS_STORAGE_KEY);
-    if (!raw) return DEFAULT_ROWS.map((r, i) => normalizeEventRow(r, i));
-    const parsed = JSON.parse(raw);
-    const list = Array.isArray(parsed) ? parsed : DEFAULT_ROWS;
-    return list.map((r, i) => normalizeEventRow(r, i));
-  } catch {
-    return DEFAULT_ROWS.map((r, i) => normalizeEventRow(r, i));
-  }
-}
-
 export default function EventsPage() {
-  const [rows, setRows] = useState(() => readEventsFromStorage());
+  const toast = useToast();
   const [activeEvent, setActiveEvent] = useState(null);
   const [viewOpen, setViewOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(rows));
-  }, [rows]);
+  const fetchEvents = useCallback(async (params) => {
+    const data = await eventsService.list(params);
+    return {
+      ...data,
+      items: data.items.map((item, index) => normalizeEventRow(item, index)),
+    };
+  }, []);
+
+  const table = useTableData({
+    fetcher: fetchEvents,
+    initialPageSize: 7,
+    initialFilters: { status: "All", country: "All" },
+  });
+  const rows = table.items;
 
   const columns = useMemo(
     () => [
@@ -149,9 +113,15 @@ export default function EventsPage() {
               setActiveEvent(r);
               setDeleteOpen(true);
             }}
-            onView={() => {
+            onView={async () => {
               setActiveEvent(r);
               setViewOpen(true);
+              try {
+                const event = await eventsService.getById(r.id);
+                setActiveEvent(normalizeEventRow(event));
+              } catch (error) {
+                toast.error(error.message);
+              }
             }}
             onEdit={() => {
               setActiveEvent(r);
@@ -161,8 +131,67 @@ export default function EventsPage() {
         ),
       },
     ],
-    [],
+    [toast],
   );
+
+  const summary = useMemo(
+    () => ({
+      upcoming: rows.filter((row) => row.status === "Upcoming").length,
+      draft: rows.filter((row) => row.status === "Draft").length,
+      registrations: rows.reduce(
+        (sum, row) => sum + Number(row.regs || row.registrations || 0),
+        0,
+      ),
+      countries: new Set(rows.map((row) => row.country).filter(Boolean)).size,
+    }),
+    [rows],
+  );
+
+  const setFilter = useCallback(
+    (key, value) => table.setFilters((prev) => ({ ...prev, [key]: value })),
+    [table],
+  );
+
+  const handleCreate = useCallback(
+    async (payload) => {
+      try {
+        await eventsService.create(payload);
+        toast.success("Event created.");
+        setCreateOpen(false);
+        table.refresh();
+      } catch (error) {
+        toast.error(error.message);
+      }
+    },
+    [table, toast],
+  );
+
+  const handleUpdate = useCallback(
+    async (id, updates) => {
+      try {
+        await eventsService.update(id, updates);
+        toast.success("Event updated.");
+        setEditOpen(false);
+        table.refresh();
+      } catch (error) {
+        toast.error(error.message);
+      }
+    },
+    [table, toast],
+  );
+
+  const handleDelete = useCallback(async () => {
+    if (!activeEvent?.id) return;
+    try {
+      await eventsService.remove(activeEvent.id);
+      toast.success("Event deleted.");
+      setDeleteOpen(false);
+      setActiveEvent(null);
+      table.refresh();
+    } catch (error) {
+      toast.error(error.message);
+    }
+  }, [activeEvent, table, toast]);
 
   return (
     <div className="space-y-6">
@@ -174,15 +203,15 @@ export default function EventsPage() {
           <MetricCard
             icon={<FiCalendar />}
             label="Upcoming Events"
-            value="12"
+            value={summary.upcoming}
           />
           <MetricCard
             icon={<FiUserCheck />}
             label="Active Registrations"
-            value="92"
+            value={summary.registrations}
           />
-          <MetricCard icon={<FiGlobe />} label="Countries Covered" value="41" />
-          <MetricCard icon={<FiEdit />} label="Draft Events" value="17" />
+          <MetricCard icon={<FiGlobe />} label="Countries Covered" value={summary.countries} />
+          <MetricCard icon={<FiEdit />} label="Draft Events" value={summary.draft} />
         </div>
       </div>
 
@@ -191,7 +220,28 @@ export default function EventsPage() {
         searchPlaceholder="Search by event name, location, or country"
         columns={columns}
         rows={rows}
-        total={rows.length}
+        total={table.total}
+        manual
+        loading={table.loading}
+        error={table.error}
+        page={table.page}
+        pageSize={table.pageSize}
+        onPageChange={table.setPage}
+        onPageSizeChange={table.setPageSize}
+        searchValue={table.search}
+        onSearchChange={table.setSearch}
+        countryValue={table.filters.country}
+        onCountryChange={(value) => setFilter("country", value)}
+        statusValue={table.filters.status}
+        onStatusChange={(value) => setFilter("status", value)}
+        countryOptions={[
+          { value: "All", label: "All Country" },
+          ...COUNTRY_OPTIONS.map((value) => ({ value, label: value })),
+        ]}
+        statusOptions={[
+          { value: "All", label: "All" },
+          ...STATUS_OPTIONS.map((value) => ({ value, label: value })),
+        ]}
         primaryAction={
           <Button variant="add" onClick={() => setCreateOpen(true)}>
             + Add Event
@@ -202,24 +252,14 @@ export default function EventsPage() {
       <CreateEventModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreate={(payload) => {
-          setRows((prev) => [normalizeEventRow(payload), ...prev]);
-          setCreateOpen(false);
-        }}
+        onCreate={handleCreate}
       />
 
       <EditEventModal
         open={editOpen}
         event={activeEvent}
         onClose={() => setEditOpen(false)}
-        onSave={(id, updates) => {
-          setRows((prev) =>
-            prev.map((r) =>
-              r.id === id ? normalizeEventRow({ ...r, ...updates }) : r,
-            ),
-          );
-          setEditOpen(false);
-        }}
+        onSave={handleUpdate}
       />
 
       <ViewEventModal
@@ -232,10 +272,7 @@ export default function EventsPage() {
         open={deleteOpen}
         event={activeEvent}
         onClose={() => setDeleteOpen(false)}
-        onConfirm={() => {
-          setRows((prev) => prev.filter((r) => r.id !== activeEvent?.id));
-          setDeleteOpen(false);
-        }}
+        onConfirm={handleDelete}
       />
     </div>
   );

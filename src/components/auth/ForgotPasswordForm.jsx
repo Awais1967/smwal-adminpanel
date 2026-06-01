@@ -6,21 +6,36 @@ import AuthInput from "./AuthInput";
 import AuthPrimaryButton from "./AuthPrimaryButton";
 import AuthSecondaryButton from "./AuthSecondaryButton";
 import { AUTH_ROUTES } from "../../config/authRoutes.config";
+import authService from "../../services/auth.service";
 
 export default function ForgotPasswordForm({ copy }) {
   const nav = useNavigate();
   const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
-    console.log({ email });
-    // UI demo: go to reset screen
-    nav(AUTH_ROUTES.resetPassword);
+    setError("");
+    setLoading(true);
+    try {
+      await authService.forgotPassword({ email });
+      nav(AUTH_ROUTES.resetPassword);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <AuthCard title={copy.title} subtitle={copy.subtitle}>
       <form onSubmit={onSubmit} className="space-y-4">
+        {error ? (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
+            {error}
+          </div>
+        ) : null}
         <AuthInput
           label="Email"
           icon={<FiMail />}
@@ -28,11 +43,12 @@ export default function ForgotPasswordForm({ copy }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
+          disabled={loading}
         />
 
         <div className="pt-2">
-          <AuthPrimaryButton type="submit">
-            {copy.submitLabel}
+          <AuthPrimaryButton type="submit" disabled={loading}>
+            {loading ? "Sending..." : copy.submitLabel}
           </AuthPrimaryButton>
         </div>
 

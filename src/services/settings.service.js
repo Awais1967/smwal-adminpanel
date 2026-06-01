@@ -1,5 +1,6 @@
 import http from "./http";
 import { ENDPOINTS } from "./endpoints";
+import { flattenTableParams, normalizeListResponse } from "./apiUtils";
 
 const settingsService = {
   async getBasic() {
@@ -12,8 +13,10 @@ const settingsService = {
   },
 
   async listMembers(params) {
-    const { data } = await http.get(ENDPOINTS.settings.members, { params });
-    return data; // { items, total }
+    const { data } = await http.get(ENDPOINTS.settings.members, {
+      params: flattenTableParams(params),
+    });
+    return normalizeListResponse(data);
   },
   async createMember(payload) {
     const { data } = await http.post(ENDPOINTS.settings.members, payload);

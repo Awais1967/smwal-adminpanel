@@ -1,10 +1,13 @@
 import http from "./http";
 import { ENDPOINTS } from "./endpoints";
+import { flattenTableParams, normalizeListResponse } from "./apiUtils";
 
 const mentorshipService = {
   async list(params) {
-    const { data } = await http.get(ENDPOINTS.mentorship, { params });
-    return data;
+    const { data } = await http.get(ENDPOINTS.mentorship, {
+      params: flattenTableParams(params),
+    });
+    return normalizeListResponse(data);
   },
   async getById(id) {
     const { data } = await http.get(`${ENDPOINTS.mentorship}/${id}`);

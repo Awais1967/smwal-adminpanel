@@ -92,8 +92,10 @@ export default function MessagesTable({
 
   useEffect(() => {
     if (page > totalPages) {
-      setPage(totalPages);
+      const id = setTimeout(() => setPage(totalPages), 0);
+      return () => clearTimeout(id);
     }
+    return undefined;
   }, [page, totalPages]);
 
   const pagedRows = useMemo(() => {

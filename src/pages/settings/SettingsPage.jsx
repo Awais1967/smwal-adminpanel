@@ -1,5 +1,5 @@
 // src/pages/settings/SettingsPage.jsx
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import TextField from "../../components/shared/TextField";
@@ -11,48 +11,13 @@ import AddMemberModal from "../../components/settings/modals/AddMemberModal";
 import ChangePasswordModal from "../../components/settings/modals/ChangePasswordModal";
 import DeleteMemberModal from "../../components/settings/modals/DeleteMemberModal";
 import useToast from "../../hooks/useToastHook";
-
-const SETTINGS_MEMBERS_STORAGE_KEY = "mih_settings_members_rows_v1";
-const SETTINGS_BASIC_INFO_STORAGE_KEY = "mih_settings_basic_info_v1";
-const SETTINGS_EMAIL_STORAGE_KEY = "mih_settings_email_v1";
+import useTableData from "../../hooks/useTableData";
+import settingsService from "../../services/settings.service";
 
 const COUNTRY_OPTIONS = ["United States", "United Kingdom", "Canada"];
 const SENDER_EMAIL_OPTIONS = ["sarah@gmail.com", "support@org.com"];
-
-const DEFAULT_ROWS = [
-  {
-    id: "1",
-    name: "Ayesha Khan",
-    email: "ayesha@org.com",
-    role: "Owner",
-    status: "Active",
-  },
-  {
-    id: "2",
-    name: "James Smith",
-    email: "james@org.com",
-    role: "Admin",
-    status: "Active",
-  },
-  {
-    id: "3",
-    name: "Fatima Patel",
-    email: "fatima@org.com",
-    role: "Staff",
-    status: "Inactive",
-  },
-];
-
-function readMembersFromStorage() {
-  try {
-    const raw = localStorage.getItem(SETTINGS_MEMBERS_STORAGE_KEY);
-    if (!raw) return DEFAULT_ROWS;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : DEFAULT_ROWS;
-  } catch {
-    return DEFAULT_ROWS;
-  }
-}
+const ROLE_OPTIONS = ["Owner", "Admin", "Staff"];
+const STATUS_OPTIONS = ["Active", "Inactive"];
 
 const DEFAULT_BASIC_INFO = {
   ministryName: "",
@@ -65,26 +30,10 @@ const DEFAULT_EMAIL_SETTINGS = {
   defaultSenderEmail: "",
 };
 
-function readJsonFromStorage(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? { ...fallback, ...parsed } : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
 export default function SettingsPage() {
   const toast = useToast();
-  const [rows, setRows] = useState(() => readMembersFromStorage());
-  const [basicInfo, setBasicInfo] = useState(() =>
-    readJsonFromStorage(SETTINGS_BASIC_INFO_STORAGE_KEY, DEFAULT_BASIC_INFO),
-  );
-  const [emailSettings, setEmailSettings] = useState(() =>
-    readJsonFromStorage(SETTINGS_EMAIL_STORAGE_KEY, DEFAULT_EMAIL_SETTINGS),
-  );
+  const [basicInfo, setBasicInfo] = useState(DEFAULT_BASIC_INFO);
+  const [emailSettings, setEmailSettings] = useState(DEFAULT_EMAIL_SETTINGS);
   const [memberModalOpen, setMemberModalOpen] = useState(false);
   const [memberMode, setMemberMode] = useState("add");
   const [activeMember, setActiveMember] = useState(null);
@@ -92,9 +41,35 @@ export default function SettingsPage() {
   const [deleteMemberOpen, setDeleteMemberOpen] = useState(false);
   const [pwModalOpen, setPwModalOpen] = useState(false);
 
+  const fetchMembers = useCallback((params) => settingsService.listMembers(params), []);
+  const table = useTableData({
+    fetcher: fetchMembers,
+    initialPageSize: 7,
+    initialFilters: { status: "All", role: "All" },
+  });
+  const rows = table.items;
+
   useEffect(() => {
-    localStorage.setItem(SETTINGS_MEMBERS_STORAGE_KEY, JSON.stringify(rows));
-  }, [rows]);
+    let active = true;
+
+    settingsService
+      .getBasic()
+      .then((data) => active && setBasicInfo({ ...DEFAULT_BASIC_INFO, ...data }))
+      .catch((error) => toast.error(error.message));
+
+    settingsService
+      .getEmailSettings()
+      .then(
+        (data) =>
+          active &&
+          setEmailSettings({ ...DEFAULT_EMAIL_SETTINGS, ...data }),
+      )
+      .catch((error) => toast.error(error.message));
+
+    return () => {
+      active = false;
+    };
+  }, [toast]);
 
   const handleAddClick = useCallback(() => {
     setActiveMember(null);
@@ -114,34 +89,51 @@ export default function SettingsPage() {
     setDeleteMemberOpen(true);
   }, []);
 
-  const handleMemberSubmit = useCallback(async (payload) => {
-    if (!payload) return;
-    if (payload.id) {
-      // update
-      setRows((prev) =>
-        prev.map((r) => (r.id === payload.id ? { ...r, ...payload } : r)),
-      );
-    } else {
-      // add new with generated id
-      const next = { ...payload, id: String(Date.now()) };
-      setRows((prev) => [next, ...prev]);
+  const handleMemberSubmit = useCallback(
+    async (payload) => {
+      if (!payload) return;
+      try {
+        if (payload.id) {
+          await settingsService.updateMember(payload.id, payload);
+          toast.success("Member updated.");
+        } else {
+          await settingsService.createMember(payload);
+          toast.success("Member added.");
+        }
+        setMemberModalOpen(false);
+        setActiveMember(null);
+        table.refresh();
+      } catch (error) {
+        toast.error(error.message);
+      }
+    },
+    [table, toast],
+  );
+
+  const handleChangePassword = useCallback(
+    async (form) => {
+      try {
+        await settingsService.changePassword(form);
+        toast.success("Password changed.");
+        setPwModalOpen(false);
+      } catch (error) {
+        toast.error(error.message);
+      }
+    },
+    [toast],
+  );
+
+  const handleSaveBasicInfo = useCallback(async () => {
+    try {
+      const data = await settingsService.updateBasic(basicInfo);
+      setBasicInfo({ ...DEFAULT_BASIC_INFO, ...data });
+      toast.success("Basic information saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-  }, []);
-
-  const handleChangePassword = useCallback(async (form) => {
-    // placeholder: implement change password logic
-    console.log("change password", form);
-  }, []);
-
-  const handleSaveBasicInfo = useCallback(() => {
-    localStorage.setItem(
-      SETTINGS_BASIC_INFO_STORAGE_KEY,
-      JSON.stringify(basicInfo),
-    );
-    toast.success("Basic information saved.");
   }, [basicInfo, toast]);
 
-  const handleSaveEmailSettings = useCallback(() => {
+  const handleSaveEmailSettings = useCallback(async () => {
     if (!emailSettings.defaultSenderName.trim()) {
       toast.error("Default sender name is required.");
       return;
@@ -151,34 +143,57 @@ export default function SettingsPage() {
       return;
     }
 
-    localStorage.setItem(
-      SETTINGS_EMAIL_STORAGE_KEY,
-      JSON.stringify(emailSettings),
-    );
-    toast.success("Email settings saved.");
+    try {
+      const data = await settingsService.updateEmailSettings(emailSettings);
+      setEmailSettings({ ...DEFAULT_EMAIL_SETTINGS, ...data });
+      toast.success("Email settings saved.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   }, [emailSettings, toast]);
 
-  const columns = [
-    { key: "name", header: "Member Name" },
-    { key: "email", header: "Email" },
-    { key: "role", header: "Role" },
-    {
-      key: "status",
-      header: "Status",
-      cell: (r) => <StatusPill status={r.status} />,
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      className: "text-right",
-      cell: (r) => (
-        <TableActions
-          onDelete={() => handleDelete(r)}
-          onEdit={() => handleEdit(r)}
-        />
-      ),
-    },
-  ];
+  const handleConfirmDelete = useCallback(async () => {
+    if (!memberPendingDelete?.id) return;
+    try {
+      await settingsService.removeMember(memberPendingDelete.id);
+      toast.success("Member deleted.");
+      setDeleteMemberOpen(false);
+      setMemberPendingDelete(null);
+      table.refresh();
+    } catch (error) {
+      toast.error(error.message);
+    }
+  }, [memberPendingDelete, table, toast]);
+
+  const setFilter = useCallback(
+    (key, value) => table.setFilters((prev) => ({ ...prev, [key]: value })),
+    [table],
+  );
+
+  const columns = useMemo(
+    () => [
+      { key: "name", header: "Member Name" },
+      { key: "email", header: "Email" },
+      { key: "role", header: "Role" },
+      {
+        key: "status",
+        header: "Status",
+        cell: (r) => <StatusPill status={r.status} />,
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        className: "text-right",
+        cell: (r) => (
+          <TableActions
+            onDelete={() => handleDelete(r)}
+            onEdit={() => handleEdit(r)}
+          />
+        ),
+      },
+    ],
+    [handleDelete, handleEdit],
+  );
 
   return (
     <div className="space-y-6">
@@ -235,23 +250,32 @@ export default function SettingsPage() {
         searchPlaceholder="Search team members by name, email, or role"
         columns={columns}
         rows={rows}
-        total={rows.length}
+        total={table.total}
+        manual
+        loading={table.loading}
+        error={table.error}
+        page={table.page}
+        pageSize={table.pageSize}
+        onPageChange={table.setPage}
+        onPageSizeChange={table.setPageSize}
+        searchValue={table.search}
+        onSearchChange={table.setSearch}
+        statusValue={table.filters.status}
+        onStatusChange={(value) => setFilter("status", value)}
+        countryValue={table.filters.role}
+        onCountryChange={(value) => setFilter("role", value)}
+        countryOptions={[
+          { value: "All", label: "All Roles" },
+          ...ROLE_OPTIONS.map((value) => ({ value, label: value })),
+        ]}
+        statusOptions={[
+          { value: "All", label: "All" },
+          ...STATUS_OPTIONS.map((value) => ({ value, label: value })),
+        ]}
         primaryAction={
           <Button variant="add" onClick={handleAddClick}>
             + Add Member
           </Button>
-        }
-        filters={
-          <>
-            <SelectField
-              options={["Role", "Owner", "Admin", "Staff"]}
-              placeholder="Role"
-            />
-            <SelectField
-              options={["Status", "Active", "Inactive"]}
-              placeholder="Status"
-            />
-          </>
         }
       />
 
@@ -317,13 +341,7 @@ export default function SettingsPage() {
           setDeleteMemberOpen(false);
           setMemberPendingDelete(null);
         }}
-        onConfirm={() => {
-          setRows((prev) =>
-            prev.filter((member) => member.id !== memberPendingDelete?.id),
-          );
-          setDeleteMemberOpen(false);
-          setMemberPendingDelete(null);
-        }}
+        onConfirm={handleConfirmDelete}
       />
     </div>
   );

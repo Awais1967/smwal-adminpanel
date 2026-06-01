@@ -43,11 +43,13 @@ export function AdminPanelProvider({ children }) {
   const resetPageMeta = useCallback(() => setPageMetaOverride(null), []);
 
   useEffect(() => {
-    closeMobileNav();
+    const id = setTimeout(closeMobileNav, 0);
+    return () => clearTimeout(id);
   }, [closeMobileNav, location.pathname]);
 
   useEffect(() => {
-    resetPageMeta();
+    const id = setTimeout(resetPageMeta, 0);
+    return () => clearTimeout(id);
   }, [activeKey, resetPageMeta]);
 
   const value = useMemo(

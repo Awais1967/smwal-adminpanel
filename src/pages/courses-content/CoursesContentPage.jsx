@@ -1,5 +1,5 @@
 // src/pages/courses-content/CoursesContentPage.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { FiBookOpen, FiFileText, FiVideo, FiGrid } from "react-icons/fi";
 import MetricCard from "../../components/shared/MetricCard";
 import DataTable from "../../components/shared/DataTable/DataTable";
@@ -10,49 +10,21 @@ import CreateCourseModal from "../../components/coursesContent/modals/CreateCour
 import EditCourseModal from "../../components/coursesContent/modals/EditCourseModal";
 import ViewCourseDetailsModal from "../../components/coursesContent/modals/ViewCourseDetailsModal";
 import DeleteCourseModal from "../../components/coursesContent/modals/DeleteCourseModal";
+import useTableData from "../../hooks/useTableData";
+import useToast from "../../hooks/useToastHook";
+import coursesService from "../../services/courses.service";
 
-const COURSES_STORAGE_KEY = "mih_courses_rows_v1";
-
-const DEFAULT_ROWS = [
-  {
-    id: "1",
-    title: "Purposeful Relationships",
-    category: "Foundations",
-    lessons: 6,
-    status: "Published",
-    updated: "18 Jun, 2026",
-  },
-  {
-    id: "2",
-    title: "Building Effective Communication",
-    category: "Foundations",
-    lessons: 7,
-    status: "Published",
-    updated: "20 Jul, 2025",
-  },
-  {
-    id: "3",
-    title: "Embracing Vulnerability",
-    category: "Foundations",
-    lessons: 8,
-    status: "Draft",
-    updated: "15 Aug, 2025",
-  },
+const STATUS_OPTIONS = ["Published", "Draft"];
+const CATEGORY_OPTIONS = [
+  "Foundations",
+  "Advanced Techniques",
+  "Leadership",
+  "Marriage",
+  "Parenting",
 ];
 
-function readCoursesFromStorage() {
-  try {
-    const raw = localStorage.getItem(COURSES_STORAGE_KEY);
-    if (!raw) return DEFAULT_ROWS;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : DEFAULT_ROWS;
-  } catch {
-    return DEFAULT_ROWS;
-  }
-}
-
 export default function CoursesContentPage() {
-  const [rows, setRows] = useState(() => readCoursesFromStorage());
+  const toast = useToast();
   const [addOpen, setAddOpen] = useState(false);
 
   const [activeCourse, setActiveCourse] = useState(null);
@@ -60,9 +32,13 @@ export default function CoursesContentPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem(COURSES_STORAGE_KEY, JSON.stringify(rows));
-  }, [rows]);
+  const fetchCourses = useCallback((params) => coursesService.list(params), []);
+  const table = useTableData({
+    fetcher: fetchCourses,
+    initialPageSize: 7,
+    initialFilters: { status: "All", category: "All" },
+  });
+  const rows = table.items;
 
   const columns = useMemo(
     () => [
@@ -85,9 +61,15 @@ export default function CoursesContentPage() {
               setActiveCourse(r);
               setDeleteOpen(true);
             }}
-            onView={() => {
+            onView={async () => {
               setActiveCourse(r);
               setViewOpen(true);
+              try {
+                const course = await coursesService.getById(r.id);
+                setActiveCourse(course);
+              } catch (error) {
+                toast.error(error.message);
+              }
             }}
             onEdit={() => {
               setActiveCourse(r);
@@ -97,8 +79,65 @@ export default function CoursesContentPage() {
         ),
       },
     ],
-    [],
+    [toast],
   );
+
+  const summary = useMemo(() => {
+    const lessons = rows.reduce((sum, row) => sum + Number(row.lessons || 0), 0);
+    const categories = new Set(rows.map((row) => row.category).filter(Boolean));
+    return {
+      lessons,
+      categories: categories.size,
+      videos: rows.filter((row) => String(row.type || "").includes("Video")).length,
+    };
+  }, [rows]);
+
+  const setFilter = useCallback(
+    (key, value) => table.setFilters((prev) => ({ ...prev, [key]: value })),
+    [table],
+  );
+
+  const handleCreate = useCallback(
+    async (payload) => {
+      try {
+        await coursesService.create(payload);
+        toast.success("Course created.");
+        setAddOpen(false);
+        table.refresh();
+      } catch (error) {
+        toast.error(error.message);
+      }
+    },
+    [table, toast],
+  );
+
+  const handleUpdate = useCallback(
+    async (patch) => {
+      if (!activeCourse?.id) return;
+      try {
+        await coursesService.update(activeCourse.id, patch);
+        toast.success("Course updated.");
+        setEditOpen(false);
+        table.refresh();
+      } catch (error) {
+        toast.error(error.message);
+      }
+    },
+    [activeCourse, table, toast],
+  );
+
+  const handleDelete = useCallback(async () => {
+    if (!activeCourse?.id) return;
+    try {
+      await coursesService.remove(activeCourse.id);
+      toast.success("Course deleted.");
+      setDeleteOpen(false);
+      setActiveCourse(null);
+      table.refresh();
+    } catch (error) {
+      toast.error(error.message);
+    }
+  }, [activeCourse, table, toast]);
 
   return (
     <div className="space-y-6">
@@ -107,10 +146,10 @@ export default function CoursesContentPage() {
       <div>
         <div className="mb-3 text-sm font-semibold text-white/80">Summary</div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard icon={<FiBookOpen />} label="Total Courses" value="12" />
-          <MetricCard icon={<FiFileText />} label="Total Lessons" value="92" />
-          <MetricCard icon={<FiVideo />} label="Video Teachings" value="41" />
-          <MetricCard icon={<FiGrid />} label="Categories" value="17" />
+          <MetricCard icon={<FiBookOpen />} label="Total Courses" value={table.total} />
+          <MetricCard icon={<FiFileText />} label="Total Lessons" value={summary.lessons} />
+          <MetricCard icon={<FiVideo />} label="Video Teachings" value={summary.videos} />
+          <MetricCard icon={<FiGrid />} label="Categories" value={summary.categories} />
         </div>
       </div>
 
@@ -119,7 +158,28 @@ export default function CoursesContentPage() {
         searchPlaceholder="Search by course name, category, or lesson title"
         columns={columns}
         rows={rows}
-        total={rows.length}
+        total={table.total}
+        manual
+        loading={table.loading}
+        error={table.error}
+        page={table.page}
+        pageSize={table.pageSize}
+        onPageChange={table.setPage}
+        onPageSizeChange={table.setPageSize}
+        searchValue={table.search}
+        onSearchChange={table.setSearch}
+        statusValue={table.filters.status}
+        onStatusChange={(value) => setFilter("status", value)}
+        countryValue={table.filters.category}
+        onCountryChange={(value) => setFilter("category", value)}
+        countryOptions={[
+          { value: "All", label: "All Categories" },
+          ...CATEGORY_OPTIONS.map((value) => ({ value, label: value })),
+        ]}
+        statusOptions={[
+          { value: "All", label: "All" },
+          ...STATUS_OPTIONS.map((value) => ({ value, label: value })),
+        ]}
         primaryAction={
           <Button variant="add" onClick={() => setAddOpen(true)}>
             + Add Course
@@ -130,50 +190,26 @@ export default function CoursesContentPage() {
       <CreateCourseModal
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        onCreate={(payload) => {
-          setRows((prev) => [payload, ...prev]);
-          setAddOpen(false);
-        }}
+        onCreate={handleCreate}
       />
       <EditCourseModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
         course={activeCourse}
-        onSave={(patch) => {
-          if (!activeCourse) return;
-          setRows((prev) =>
-            prev.map((r) =>
-              r.id === activeCourse.id ? { ...r, ...patch } : r,
-            ),
-          );
-          setEditOpen(false);
-        }}
+        onSave={handleUpdate}
       />
 
       <ViewCourseDetailsModal
         open={viewOpen}
         onClose={() => setViewOpen(false)}
         course={activeCourse}
-        onUpdateCourse={(patch) => {
-          if (!activeCourse) return;
-          setRows((prev) =>
-            prev.map((r) =>
-              r.id === activeCourse.id ? { ...r, ...patch } : r,
-            ),
-          );
-          setActiveCourse((prev) => (prev ? { ...prev, ...patch } : prev));
-        }}
       />
 
       <DeleteCourseModal
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         course={activeCourse}
-        onConfirm={() => {
-          if (!activeCourse) return;
-          setRows((prev) => prev.filter((r) => r.id !== activeCourse.id));
-          setDeleteOpen(false);
-        }}
+        onConfirm={handleDelete}
       />
     </div>
   );

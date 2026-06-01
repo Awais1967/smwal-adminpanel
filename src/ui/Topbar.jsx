@@ -5,7 +5,7 @@ import { FiChevronDown } from "react-icons/fi";
 
 export default function Topbar({ onOpenMobileNav }) {
   const { pageMeta } = useAdminPanel();
-  const { user } = useAuth();
+  const { logout, user } = useAuth();
 
   const greeting = useMemo(() => {
     const name = user?.name || "Tom";
@@ -39,7 +39,9 @@ export default function Topbar({ onOpenMobileNav }) {
               <div className="text-[12px] font-semibold text-white/85">
                 {user?.name || "Tom"}
               </div>
-              <div className="text-[10px] text-white/45">Admin Portal</div>
+              <div className="text-[10px] text-white/45">
+                {user?.role || "Admin Portal"}
+              </div>
             </div>
             <FiChevronDown className="text-white/60" />
           </div>
@@ -50,6 +52,16 @@ export default function Topbar({ onOpenMobileNav }) {
           <div className="border-t border-white/10 px-3 py-2 text-[12px] text-white/60">
             {user?.email || "tom@email.com"}
           </div>
+          <div className="border-t border-white/10 px-3 py-2 text-[12px] text-white/60">
+            {user?.status || user?.role || "Active"}
+          </div>
+          <button
+            type="button"
+            onClick={logout}
+            className="w-full border-t border-white/10 px-3 py-2 text-left text-[12px] text-white/70 hover:bg-white/5"
+          >
+            Logout
+          </button>
         </div>
       </details>
     </div>
