@@ -15,7 +15,6 @@ import useToast from "../../hooks/useToastHook";
 import usersService from "../../services/users.service";
 
 const STATUS_OPTIONS = ["Active", "Inactive"];
-const COUNTRY_OPTIONS = ["UK", "Spain", "India", "Canada", "Australia"];
 
 export default function UsersPage() {
   const toast = useToast();
@@ -165,10 +164,6 @@ export default function UsersPage() {
         onCountryChange={(value) => setFilter("country", value)}
         statusValue={table.filters.status}
         onStatusChange={(value) => setFilter("status", value)}
-        countryOptions={[
-          { value: "All", label: "All Country" },
-          ...COUNTRY_OPTIONS.map((value) => ({ value, label: value })),
-        ]}
         statusOptions={[
           { value: "All", label: "All" },
           ...STATUS_OPTIONS.map((value) => ({ value, label: value })),

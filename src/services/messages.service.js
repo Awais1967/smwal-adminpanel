@@ -28,6 +28,10 @@ const messagesService = {
     const { data } = await http.delete(`${ENDPOINTS.messages.campaigns}/${id}`);
     return data;
   },
+  async send(id) {
+    const { data } = await http.post(`${ENDPOINTS.messages.campaigns}/${id}/send`);
+    return data;
+  },
   async summary(params) {
     const { data } = await http.get(ENDPOINTS.messages.summary, { params });
     return data;

@@ -2,8 +2,11 @@ import React from "react";
 import {
   FiActivity,
   FiBarChart2,
+  FiEdit3,
   FiMessageSquare,
+  FiMousePointer,
   FiSend,
+  FiUsers,
 } from "react-icons/fi";
 
 function SummaryCard({ icon, label, value }) {
@@ -27,26 +30,36 @@ export default function MessagesSummary({ stats }) {
   return (
     <div>
       <div className="mb-3 text-sm font-semibold text-white/80">Summary</div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <SummaryCard
           icon={<FiMessageSquare />}
           label="Total Campaigns"
-          value={stats.totalCampaigns}
+          value={stats.totalCampaigns || 0}
         />
         <SummaryCard
           icon={<FiSend />}
-          label="Messages Sent"
-          value={stats.messagesSent}
+          label="Sent Campaigns"
+          value={stats.sentCampaigns || 0}
+        />
+        <SummaryCard
+          icon={<FiEdit3 />}
+          label="Draft Campaigns"
+          value={stats.draftCampaigns || 0}
+        />
+        <SummaryCard
+          icon={<FiUsers />}
+          label="Total Recipients"
+          value={stats.totalRecipients || 0}
         />
         <SummaryCard
           icon={<FiBarChart2 />}
-          label="Open Rate"
-          value={stats.openRate}
+          label="Avg Open Rate"
+          value={stats.averageOpenRate || "0%"}
         />
         <SummaryCard
-          icon={<FiActivity />}
-          label="CTR Rate"
-          value={stats.ctrRate}
+          icon={<FiMousePointer />}
+          label="Avg CTR"
+          value={stats.averageCtr || "0%"}
         />
       </div>
     </div>

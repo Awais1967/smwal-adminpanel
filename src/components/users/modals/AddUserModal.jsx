@@ -1,14 +1,5 @@
 import React, { useEffect, useMemo, useState, startTransition } from "react";
-import { FiArrowLeft, FiX, FiChevronDown, FiUpload } from "react-icons/fi";
-
-const COUNTRIES = ["UK", "Spain", "India", "Canada", "Australia"];
-const CITIES = {
-  UK: ["London", "Manchester"],
-  Spain: ["Barcelona", "Madrid"],
-  India: ["Mumbai", "Delhi"],
-  Canada: ["Toronto", "Vancouver"],
-  Australia: ["Sydney", "Melbourne"],
-};
+import { FiArrowLeft, FiX, FiUpload } from "react-icons/fi";
 
 function useLockBody(open) {
   useEffect(() => {
@@ -34,18 +25,6 @@ const Input = (props) => (
       (props.className || "")
     }
   />
-);
-
-const Select = ({ children, ...props }) => (
-  <div className="relative">
-    <select
-      {...props}
-      className="h-10 w-full appearance-none rounded-lg border border-white/10 bg-white/5 px-3 pr-9 text-[13px] text-white/80 outline-none focus:border-white/20"
-    >
-      {children}
-    </select>
-    <FiChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/50" />
-  </div>
 );
 
 const Stepper = ({ value, onChange, min = 0 }) => (
@@ -84,11 +63,6 @@ export default function AddUserModal({ open, onClose, onCreate }) {
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
   const [portraitName, setPortraitName] = useState("");
-
-  const cities = useMemo(
-    () => (country ? CITIES[country] || [] : []),
-    [country],
-  );
 
   const canSubmit = useMemo(() => {
     return (
@@ -174,9 +148,10 @@ export default function AddUserModal({ open, onClose, onCreate }) {
             </Field>
 
             <Field label="Gender">
-              <Select
+              <select
                 value={gender}
                 onChange={(e) => setGender(e.target.value)}
+                className="h-10 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-[13px] text-white/80 outline-none focus:border-white/20"
               >
                 <option value="" className="bg-[#141414]">
                   Select gender
@@ -190,44 +165,24 @@ export default function AddUserModal({ open, onClose, onCreate }) {
                 <option value="Other" className="bg-[#141414]">
                   Other
                 </option>
-              </Select>
+              </select>
             </Field>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Country">
-                <Select
+                <Input
                   value={country}
-                  onChange={(e) => {
-                    setCountry(e.target.value);
-                    setCity("");
-                  }}
-                >
-                  <option value="" className="bg-[#141414]">
-                    Select country
-                  </option>
-                  {COUNTRIES.map((c) => (
-                    <option key={c} value={c} className="bg-[#141414]">
-                      {c}
-                    </option>
-                  ))}
-                </Select>
+                  onChange={(e) => setCountry(e.target.value)}
+                  placeholder="Enter country"
+                />
               </Field>
 
               <Field label="City">
-                <Select
+                <Input
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  disabled={!country}
-                >
-                  <option value="" className="bg-[#141414]">
-                    Enter city
-                  </option>
-                  {cities.map((c) => (
-                    <option key={c} value={c} className="bg-[#141414]">
-                      {c}
-                    </option>
-                  ))}
-                </Select>
+                  placeholder="Enter city"
+                />
               </Field>
             </div>
 
@@ -283,8 +238,8 @@ export default function AddUserModal({ open, onClose, onCreate }) {
                 phone: phone.trim(),
                 age: Number(age || 0),
                 gender,
-                country,
-                city: `${city}, ${country}`,
+                country: country.trim(),
+                city: city.trim(),
                 status: "Active",
                 married: "No",
                 match: "",

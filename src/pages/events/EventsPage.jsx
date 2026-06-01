@@ -15,7 +15,6 @@ import useToast from "../../hooks/useToastHook";
 import eventsService from "../../services/events.service";
 
 const STATUS_OPTIONS = ["Upcoming", "Draft", "Closed"];
-const COUNTRY_OPTIONS = ["UK", "USA", "France", "Germany", "Canada", "Indonesia"];
 
 function parseLocation(location) {
   const parts = String(location || "")
@@ -234,10 +233,6 @@ export default function EventsPage() {
         onCountryChange={(value) => setFilter("country", value)}
         statusValue={table.filters.status}
         onStatusChange={(value) => setFilter("status", value)}
-        countryOptions={[
-          { value: "All", label: "All Country" },
-          ...COUNTRY_OPTIONS.map((value) => ({ value, label: value })),
-        ]}
         statusOptions={[
           { value: "All", label: "All" },
           ...STATUS_OPTIONS.map((value) => ({ value, label: value })),

@@ -3,14 +3,20 @@ import { FiArrowLeft, FiChevronDown, FiX } from "react-icons/fi";
 import Modal from "../../shared/Modal/Modal";
 
 const SEGMENT_OPTIONS = [
-  "All Active Users",
+  "All Users",
+  "Active Users",
   "Inactive 30-Day Users",
-  "Newly Registered Users",
-  "Event Attendees",
-  "Mentorship Applicants",
+  "Matched Users",
+  "Unmatched Users",
+  "Subscribed Users",
+  "Users with Pending Payment",
+  "Event Registered Users",
+  "Mentorship Users",
+  "Country Based Users",
 ];
 
 const PRIORITY_OPTIONS = ["Normal", "High", "Low"];
+const STATUS_OPTIONS = ["Draft", "Sent"];
 
 function Field({ label, children }) {
   return (
@@ -75,6 +81,7 @@ export default function CampaignComposerModal({
   open,
   mode = "create",
   campaign,
+  saving = false,
   onClose,
   onSubmit,
 }) {
@@ -87,6 +94,8 @@ export default function CampaignComposerModal({
   const [sendDate, setSendDate] = useState("");
   const [sendTime, setSendTime] = useState("");
   const [priority, setPriority] = useState("Normal");
+  const [status, setStatus] = useState("Draft");
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (!open) return;
@@ -98,6 +107,8 @@ export default function CampaignComposerModal({
       setSendDate(campaign?.sendDate || "");
       setSendTime(campaign?.sendTime || "");
       setPriority(campaign?.priority || "Normal");
+      setStatus(campaign?.status || "Draft");
+      setErrors({});
     });
   }, [campaign, open]);
 
@@ -117,11 +128,11 @@ export default function CampaignComposerModal({
       campaignName.trim().length > 0 &&
       segment &&
       message.trim().length > 0 &&
-      sendDate &&
-      sendTime &&
+      message.trim().length <= 500 &&
+      (status !== "Sent" || (sendDate && sendTime)) &&
       priority
     );
-  }, [campaignName, message, priority, segment, sendDate, sendTime]);
+  }, [campaignName, message, priority, segment, sendDate, sendTime, status]);
 
   const payload = useMemo(
     () => ({
@@ -131,9 +142,38 @@ export default function CampaignComposerModal({
       sendDate,
       sendTime,
       priority,
+      status,
     }),
-    [campaignName, message, priority, segment, sendDate, sendTime],
+    [campaignName, message, priority, segment, sendDate, sendTime, status],
   );
+
+  const validate = (nextPayload) => {
+    const nextErrors = {};
+    if (!nextPayload.campaignName) nextErrors.campaignName = "Campaign name is required.";
+    if (!nextPayload.segment) nextErrors.segment = "Segment is required.";
+    if (!nextPayload.priority) nextErrors.priority = "Priority is required.";
+    if (!nextPayload.message) nextErrors.message = "Message is required.";
+    if (nextPayload.message.length > 500) {
+      nextErrors.message = "Message must be 500 characters or fewer.";
+    }
+    if (nextPayload.status === "Sent" && !nextPayload.sendDate) {
+      nextErrors.sendDate = "Send date is required for sent campaigns.";
+    }
+    if (nextPayload.status === "Sent" && !nextPayload.sendTime) {
+      nextErrors.sendTime = "Send time is required for sent campaigns.";
+    }
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const submit = (action) => {
+    const nextPayload = {
+      ...payload,
+      status: action === "draft" ? "Draft" : payload.status,
+    };
+    if (!validate(nextPayload)) return;
+    onSubmit?.(nextPayload, action);
+  };
 
   return (
     <Modal
@@ -177,6 +217,9 @@ export default function CampaignComposerModal({
               onChange={(event) => setCampaignName(event.target.value)}
               disabled={isView}
             />
+            {errors.campaignName ? (
+              <div className="text-[12px] text-red-300">{errors.campaignName}</div>
+            ) : null}
           </Field>
 
           <Field label="Target Segment">
@@ -194,6 +237,9 @@ export default function CampaignComposerModal({
                 </option>
               ))}
             </Select>
+            {errors.segment ? (
+              <div className="text-[12px] text-red-300">{errors.segment}</div>
+            ) : null}
           </Field>
 
           <Field label="Message">
@@ -203,8 +249,49 @@ export default function CampaignComposerModal({
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               disabled={isView}
+              maxLength={500}
             />
+            <div className="flex justify-between text-[11px] text-white/40">
+              <span>{errors.message || ""}</span>
+              <span>{message.length}/500</span>
+            </div>
           </Field>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Status">
+              <Select
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+                disabled={isView}
+              >
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option} value={option} className="bg-[#141414]">
+                    {option}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field label="Priority">
+              <Select
+                value={priority}
+                onChange={(event) => setPriority(event.target.value)}
+                disabled={isView}
+              >
+                <option value="" className="bg-[#141414]">
+                  Normal / High / Low
+                </option>
+                {PRIORITY_OPTIONS.map((option) => (
+                  <option key={option} value={option} className="bg-[#141414]">
+                    {option}
+                  </option>
+                ))}
+              </Select>
+              {errors.priority ? (
+                <div className="text-[12px] text-red-300">{errors.priority}</div>
+              ) : null}
+            </Field>
+          </div>
 
           <Field label="Send Date">
             <Input
@@ -213,6 +300,9 @@ export default function CampaignComposerModal({
               onChange={(event) => setSendDate(event.target.value)}
               disabled={isView}
             />
+            {errors.sendDate ? (
+              <div className="text-[12px] text-red-300">{errors.sendDate}</div>
+            ) : null}
           </Field>
 
           <Field label="Send Time">
@@ -222,24 +312,19 @@ export default function CampaignComposerModal({
               onChange={(event) => setSendTime(event.target.value)}
               disabled={isView}
             />
+            {errors.sendTime ? (
+              <div className="text-[12px] text-red-300">{errors.sendTime}</div>
+            ) : null}
           </Field>
 
-          <Field label="Priority">
-            <Select
-              value={priority}
-              onChange={(event) => setPriority(event.target.value)}
-              disabled={isView}
-            >
-              <option value="" className="bg-[#141414]">
-                Normal / High / Low
-              </option>
-              {PRIORITY_OPTIONS.map((option) => (
-                <option key={option} value={option} className="bg-[#141414]">
-                  {option}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          {isView ? (
+            <div className="grid gap-3 rounded-xl border border-white/10 bg-white/4 p-4 text-[12px] text-white/70 sm:grid-cols-3">
+              <div>Recipients: {campaign?.recipients || 0}</div>
+              <div>Sent: {campaign?.sent || 0}</div>
+              <div>Open Rate: {campaign?.openRate || 0}%</div>
+              <div>CTR: {campaign?.ctr || 0}%</div>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -255,23 +340,21 @@ export default function CampaignComposerModal({
         ) : (
           <>
             <button
-              type="button"
-              onClick={() => onSubmit?.(payload, "draft")}
-              disabled={!canSubmit}
-              className="h-12 w-full rounded-lg border border-white/10 bg-white/5 text-[14px] font-semibold text-white/85 transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-50 sm:w-1/2"
-            >
-              Save As Draft
+            type="button"
+            onClick={() => submit("draft")}
+            disabled={saving}
+            className="h-12 w-full rounded-lg border border-white/10 bg-white/5 text-[14px] font-semibold text-white/85 transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-50 sm:w-1/2"
+          >
+              {saving ? "Saving..." : "Save As Draft"}
             </button>
 
             <button
               type="button"
-              onClick={() =>
-                onSubmit?.(payload, isEdit ? "save" : "publish")
-              }
-              disabled={!canSubmit}
+              onClick={() => submit(isEdit ? "save" : "publish")}
+              disabled={!canSubmit || saving}
               className="h-12 w-full rounded-lg bg-[#2F6CF6] text-[14px] font-semibold text-white transition hover:bg-[#285FDC] disabled:cursor-not-allowed disabled:opacity-50 sm:w-1/2"
             >
-              {isEdit ? "Save Details" : "Add Campaign"}
+              {saving ? "Saving..." : isEdit ? "Save Details" : "Add Campaign"}
             </button>
           </>
         )}
