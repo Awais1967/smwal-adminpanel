@@ -38,7 +38,9 @@ const Field = ({ label, value, right }) => (
       <p className="text-xs font-medium text-white/70">{label}</p>
       {right}
     </div>
-    <p className="mt-1 text-sm text-white/80">{value || "-"}</p>
+    {value !== undefined ? (
+      <p className="mt-1 text-sm text-white/80">{value || "-"}</p>
+    ) : null}
   </div>
 );
 
@@ -48,8 +50,9 @@ export default function TransactionDetailsModal({
   transaction,
 }) {
   const t = transaction || {};
+  const status = t.status || "";
   const pillCls =
-    statusStyles[t.status] || "border-white/10 text-white/70 bg-white/[0.03]";
+    statusStyles[status] || "border-white/10 text-white/70 bg-white/[0.03]";
 
   return (
     <ModalFrame isOpen={isOpen} onClose={onClose}>
@@ -65,10 +68,10 @@ export default function TransactionDetailsModal({
             </button>
             <div>
               <h2 className="text-lg font-semibold text-white">
-                Support Ticket
+                Transaction Details
               </h2>
               <p className="mt-1 text-sm text-white/55">
-                Review the user's request and respond quickly.
+                Review payment information and current transaction status.
               </p>
             </div>
           </div>
@@ -98,12 +101,11 @@ export default function TransactionDetailsModal({
           <Field label="Payment Date" value={t.paymentDate} />
           <Field
             label="Status"
-            value=""
             right={
               <span
                 className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-xs ${pillCls}`}
               >
-                {t.status || "-"}
+                {status || "-"}
               </span>
             }
           />

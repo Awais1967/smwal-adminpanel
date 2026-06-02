@@ -122,6 +122,8 @@ export default function AddUserModal({ open, onClose, onCreate }) {
             <Field label="Full Name">
               <Input
                 placeholder="Enter full name"
+                autoComplete="off"
+                name="new-user-full-name"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
               />
@@ -130,6 +132,8 @@ export default function AddUserModal({ open, onClose, onCreate }) {
             <Field label="Email Address">
               <Input
                 placeholder="Email Address"
+                autoComplete="off"
+                name="new-user-email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -138,6 +142,8 @@ export default function AddUserModal({ open, onClose, onCreate }) {
             <Field label="Phone Number">
               <Input
                 placeholder="Enter phone number"
+                autoComplete="off"
+                name="new-user-phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
               />
@@ -174,6 +180,8 @@ export default function AddUserModal({ open, onClose, onCreate }) {
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
                   placeholder="Enter country"
+                  autoComplete="off"
+                  name="new-user-country"
                 />
               </Field>
 
@@ -182,6 +190,8 @@ export default function AddUserModal({ open, onClose, onCreate }) {
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="Enter city"
+                  autoComplete="off"
+                  name="new-user-city"
                 />
               </Field>
             </div>
@@ -232,7 +242,6 @@ export default function AddUserModal({ open, onClose, onCreate }) {
             disabled={!canSubmit}
             onClick={() => {
               const payload = {
-                id: `usr_${Date.now()}`,
                 name: fullName.trim(),
                 email: email.trim(),
                 phone: phone.trim(),

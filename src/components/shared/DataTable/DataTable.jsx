@@ -6,11 +6,11 @@ function buildPagination(current, totalPages) {
   if (totalPages <= 5)
     return Array.from({ length: totalPages }, (_, i) => i + 1);
 
-  if (current <= 2) return [1, 2, "…", totalPages];
+  if (current <= 2) return [1, 2, "...", totalPages];
 
-  if (current >= totalPages - 1) return [1, "…", totalPages - 1, totalPages];
+  if (current >= totalPages - 1) return [1, "...", totalPages - 1, totalPages];
 
-  return [1, "…", current, "…", totalPages];
+  return [1, "...", current, "...", totalPages];
 }
 
 function SelectPill({
@@ -383,16 +383,16 @@ export default function DataTable({
             ].join(" ")}
             aria-label="Previous page"
           >
-            ‹
+            &lt;
           </button>
 
           {pageItems.map((it, i) =>
-            it === "…" ? (
+            it === "..." ? (
               <div
                 key={`dots-${i}`}
                 className="h-9 min-w-9 rounded-lg border border-white/10 bg-white/2 px-3 grid place-items-center text-white/60"
               >
-                …
+                ...
               </div>
             ) : (
               <button
@@ -420,7 +420,7 @@ export default function DataTable({
             ].join(" ")}
             aria-label="Next page"
           >
-            ›
+            &gt;
           </button>
         </div>
       </div>

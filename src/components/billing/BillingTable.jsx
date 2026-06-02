@@ -393,7 +393,7 @@ export default function BillingTable({ onStatsChange }) {
                   );
                 })}
                 {totalPages > 4 && (
-                  <span className="px-2 text-xs text-white/40">…</span>
+                  <span className="px-2 text-xs text-white/40">...</span>
                 )}
                 {totalPages > 4 && (
                   <button

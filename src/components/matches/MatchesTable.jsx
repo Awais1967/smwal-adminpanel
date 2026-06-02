@@ -442,7 +442,7 @@ export default function MatchesTable({
               className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#0E0F12] text-white ring-1 ring-[#23242B] disabled:opacity-50"
               aria-label="Previous"
             >
-              ‹
+              &lt;
             </button>
 
             {renderPagination(page, totalPages, setPage)}
@@ -453,7 +453,7 @@ export default function MatchesTable({
               className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#0E0F12] text-white ring-1 ring-[#23242B] disabled:opacity-50"
               aria-label="Next"
             >
-              ›
+              {">"}
             </button>
           </div>
         </div>
@@ -506,7 +506,7 @@ function renderPagination(page, totalPages, setPage) {
   const pushDots = (k) =>
     items.push(
       <span key={k} className="px-1 text-[#6D7380]">
-        …
+        ...
       </span>,
     );
 

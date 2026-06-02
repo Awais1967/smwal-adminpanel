@@ -9,8 +9,8 @@ import { AUTH_ROUTES } from "../../config/authRoutes.config";
 import { useAuth } from "../../context/AuthContext";
 
 export default function LoginForm({ copy }) {
-  const [email, setEmail] = useState("admin@example.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -22,12 +22,9 @@ export default function LoginForm({ copy }) {
     setLoading(true);
 
     try {
-      const response = await login({ email, password });
-      console.log("Login response:", response);
-      // Navigate to matches page after successful login
+      await login({ email, password });
       navigate("/matches");
     } catch (err) {
-      console.error("Login error:", err);
       setError(
         err?.response?.data?.message ||
           err?.message ||
@@ -60,7 +57,7 @@ export default function LoginForm({ copy }) {
           <PasswordField
             label="Password"
             icon={<FiLock />}
-            placeholder="••••••••"
+            placeholder="********"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"

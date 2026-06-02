@@ -17,10 +17,15 @@ function formatDate(d) {
 
 function statusPill(status) {
   const s = String(status || "").toLowerCase();
-  const cls =
-    s === "published"
-      ? "border-teal-400/35 bg-teal-400/15 text-teal-200"
-      : "border-fuchsia-400/35 bg-fuchsia-400/15 text-fuchsia-200";
+  let cls = "border-fuchsia-400/35 bg-fuchsia-400/15 text-fuchsia-200";
+
+  if (s === "published") {
+    cls = "border-teal-400/35 bg-teal-400/15 text-teal-200";
+  }
+
+  if (s === "scheduled") {
+    cls = "border-sky-400/35 bg-sky-400/15 text-sky-200";
+  }
 
   return (
     <span
@@ -31,21 +36,32 @@ function statusPill(status) {
   );
 }
 
+function Field({ label, value, children }) {
+  return (
+    <div>
+      <div className="text-white/60">{label}</div>
+      {children || <div className="mt-1 break-words text-white/75">{value || "-"}</div>}
+    </div>
+  );
+}
+
 export default function ViewCourseDetailsModal({ open, onClose, course }) {
   const [tab, setTab] = useState("basic");
 
   const lessons = useMemo(() => {
-    const l = course?.lessons;
-    if (!l) return [];
-    return Array.isArray(l) ? l : Object.values(l);
+    if (Array.isArray(course?.lessonOutline)) return course.lessonOutline;
+    if (Array.isArray(course?.lessons)) return course.lessons;
+    return [];
   }, [course]);
+
+  const coverPhoto = course?.coverPhoto || course?.coverPhotoUrl || "";
 
   return (
     <CourseModalShell
       open={open}
       onClose={onClose}
       title="View Course Details"
-      subtitle="Change the lead status to keep tracking accurate."
+      subtitle="Review course information and embedded lesson outline."
       showBack
       footer={
         <button
@@ -62,57 +78,59 @@ export default function ViewCourseDetailsModal({ open, onClose, course }) {
 
         {tab === "basic" ? (
           <div className="rounded-xl border border-white/10 bg-white/4 p-4">
-            <div className="space-y-3 text-[12px]">
-              <div>
-                <div className="text-white/60">Course Title</div>
-                <div className="mt-1 text-white/85">{course?.title || "-"}</div>
+            <div className="space-y-4 text-[12px]">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Course Title" value={course?.title} />
+                <Field label="Category" value={course?.category} />
               </div>
 
-              <div>
-                <div className="text-white/60">Category</div>
-                <div className="mt-1 text-white/85">
-                  {course?.category || "-"}
-                </div>
-              </div>
+              <Field
+                label="Description"
+                value={course?.description || course?.shortDescription}
+              />
 
-              <div>
-                <div className="text-white/60">Short Description</div>
-                <div className="mt-1 text-white/75">
-                  {course?.shortDescription?.trim()
-                    ? course.shortDescription
-                    : "-"}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-white/60">Cover Photo</div>
-                {course?.coverPhoto?.name ? (
-                  <div className="mt-2 flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-md bg-white/10" />
-                    <div className="text-white/75">
-                      {course.coverPhoto.name}
-                    </div>
+              <Field label="Cover Photo">
+                {coverPhoto ? (
+                  <div className="mt-2 flex items-center gap-3 break-all">
+                    {String(coverPhoto).startsWith("http") ||
+                    String(coverPhoto).startsWith("/") ? (
+                      <img
+                        src={coverPhoto}
+                        alt=""
+                        className="h-12 w-16 rounded-md object-cover"
+                      />
+                    ) : (
+                      <div className="h-12 w-16 rounded-md bg-white/10" />
+                    )}
+                    <div className="text-white/75">{coverPhoto}</div>
                   </div>
                 ) : (
                   <div className="mt-1 text-white/45">-</div>
                 )}
-              </div>
+              </Field>
 
-              <div className="flex items-center gap-3">
-                <div>
-                  <div className="text-white/60">Course Status</div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <Field label="Course Status">
                   <div className="mt-2">
-                    {statusPill(course?.status || "Draft")}
+                    {statusPill(course?.courseStatus || course?.status || "Draft")}
                   </div>
-                </div>
+                </Field>
+                <Field label="Duration" value={course?.duration} />
+                <Field
+                  label="Price"
+                  value={Number(course?.price || 0).toLocaleString()}
+                />
               </div>
 
-              <div>
-                <div className="text-white/60">Last Modified</div>
-                <div className="mt-1 text-white/75">
-                  {course?.updatedAt ? formatDate(course.updatedAt) : "-"}
-                </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Lesson Type" value={course?.lessonType} />
+                <Field label="Lesson Upload" value={course?.lessonUpload} />
               </div>
+
+              <Field
+                label="Last Modified"
+                value={course?.updatedAt ? formatDate(course.updatedAt) : "-"}
+              />
             </div>
           </div>
         ) : (
@@ -120,52 +138,59 @@ export default function ViewCourseDetailsModal({ open, onClose, course }) {
             {lessons.length === 0 ? (
               <div className="text-white/60">No lessons found.</div>
             ) : (
-              <div className="space-y-6 text-[12px]">
-                {lessons.map((l, idx) => (
-                  <div key={l.id} className="space-y-3">
-                    <div className="text-white/60">Lesson {idx + 1}</div>
-
-                    <div>
-                      <div className="text-white/60">Lesson Title</div>
-                      <div className="mt-1 text-white/85">{l.title || "-"}</div>
+              <div className="space-y-4 text-[12px]">
+                {lessons.map((lesson, index) => (
+                  <div
+                    key={lesson.id || `${lesson.title}-${index}`}
+                    className="space-y-3 rounded-lg border border-white/10 bg-black/15 p-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="font-semibold text-white/90">
+                        Lesson {index + 1}: {lesson.title || "-"}
+                      </div>
+                      {statusPill(lesson.status)}
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div>
-                        <div className="text-white/60">Type</div>
-                        <div className="mt-1 text-white/85">
-                          {l.type || "-"}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-white/60">Duration</div>
-                        <div className="mt-1 text-white/85">
-                          {l.duration || "-"}
-                        </div>
-                      </div>
+                      <Field label="Type" value={lesson.type} />
+                      <Field label="Duration" value={lesson.duration} />
                     </div>
 
-                    <div>
-                      <div className="text-white/60">Lesson Summary</div>
-                      <div className="mt-1 text-white/75">
-                        {l.summary || "-"}
-                      </div>
+                    <Field label="Description" value={lesson.description} />
+                    <Field label="Summary" value={lesson.summary} />
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Field label="Cover Photo" value={lesson.coverPhoto} />
+                      <Field label="Attachment URL">
+                        {lesson.attachmentUrl ? (
+                          <a
+                            href={lesson.attachmentUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 block break-all text-[#6EA8FF] hover:underline"
+                          >
+                            {lesson.attachmentUrl}
+                          </a>
+                        ) : (
+                          <div className="mt-1 text-white/45">-</div>
+                        )}
+                      </Field>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <div className="text-white/60">Lesson Status</div>
-                        <div className="mt-2">{statusPill(l.status)}</div>
-                      </div>
+                    <Field label="Reflection" value={lesson.reflectionText} />
 
-                      <div>
-                        <div className="text-white/60">Last Modified</div>
-                        <div className="mt-1 text-white/75">
-                          {l.updatedAt ? formatDate(l.updatedAt) : "-"}
-                        </div>
-                      </div>
-                    </div>
+                    <Field label="Key Takeaways">
+                      {Array.isArray(lesson.keyTakeaways) &&
+                      lesson.keyTakeaways.length ? (
+                        <ul className="mt-2 list-disc space-y-1 pl-5 text-white/75">
+                          {lesson.keyTakeaways.map((item, itemIndex) => (
+                            <li key={`${item}-${itemIndex}`}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="mt-1 text-white/45">-</div>
+                      )}
+                    </Field>
                   </div>
                 ))}
               </div>

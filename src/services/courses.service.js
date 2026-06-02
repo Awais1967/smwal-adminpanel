@@ -17,6 +17,15 @@ const coursesService = {
     const { data } = await http.post(ENDPOINTS.courses, payload);
     return data;
   },
+  async upload(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const { data } = await http.post(`${ENDPOINTS.courses}/upload`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  },
   async update(id, payload) {
     const { data } = await http.put(`${ENDPOINTS.courses}/${id}`, payload);
     return data;

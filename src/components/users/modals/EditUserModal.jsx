@@ -1,4 +1,8 @@
-import React, { useEffect, useMemo, useState, startTransition } from "react";
+import React, {
+  useEffect,
+  useState,
+  startTransition,
+} from "react";
 import { FiArrowLeft, FiX, FiUpload } from "react-icons/fi";
 
 function useLockBody(open) {
@@ -38,29 +42,29 @@ export default function EditUserModal({ open, onClose, user, onSave }) {
 
   useEffect(() => {
     if (!open || !user) return;
+    const nextValues = {
+      name: user.name || "",
+      email: user.email || "",
+      phone: user.phone || "",
+      age: Number(user.age || 0),
+      gender: user.gender || "",
+      country: user.country || "",
+      city: user.city || "",
+      profilePictureUrl:
+        user.profilePictureUrl || user.portraitUrl || user.portraitName || "",
+    };
+
     startTransition(() => {
-      setFullName(user.name || "");
-      setEmail(user.email || "");
-      setPhone(user.phone || "");
-      setAge(user.age || 0);
-      setGender(user.gender || "");
-      setCountry(user.country || "");
-      setPortraitName(user.portraitName || "");
-      const onlyCity = user.city || "";
-      setCity(onlyCity);
+      setFullName(nextValues.name);
+      setEmail(nextValues.email);
+      setPhone(nextValues.phone);
+      setAge(nextValues.age);
+      setGender(nextValues.gender);
+      setCountry(nextValues.country);
+      setCity(nextValues.city);
+      setPortraitName(nextValues.profilePictureUrl);
     });
   }, [open, user]);
-
-  const canSubmit = useMemo(() => {
-    return (
-      fullName.trim().length >= 2 &&
-      email.includes("@") &&
-      phone.trim().length > 5 &&
-      gender &&
-      country &&
-      city
-    );
-  }, [fullName, email, phone, gender, country, city]);
 
   if (!open) return null;
 
@@ -76,9 +80,11 @@ export default function EditUserModal({ open, onClose, user, onSave }) {
               <FiArrowLeft size={18} />
             </button>
             <div>
-              <h3 className="text-[16px] font-semibold text-white">Add User</h3>
+              <h3 className="text-[16px] font-semibold text-white">
+                Edit User
+              </h3>
               <p className="mt-1 text-[12px] text-white/55">
-                Create a new user profile for the platform.
+                Edit user profile information and save when ready.
               </p>
             </div>
           </div>
@@ -100,18 +106,24 @@ export default function EditUserModal({ open, onClose, user, onSave }) {
             </Field>
 
             <Field label="Email Address">
-              <Input value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </Field>
 
             <Field label="Phone Number">
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
             </Field>
 
             <Field label="Age">
               <div className="flex h-10 items-center overflow-hidden rounded-lg border border-white/10 bg-white/5">
                 <button
                   type="button"
-                  onClick={() => setAge((a) => a + 1)}
+                  onClick={() => setAge((a) => Number(a || 0) + 1)}
                   className="h-full w-10 text-white/70 hover:bg-white/5"
                 >
                   +
@@ -123,7 +135,7 @@ export default function EditUserModal({ open, onClose, user, onSave }) {
                 />
                 <button
                   type="button"
-                  onClick={() => setAge((a) => Math.max(0, a - 1))}
+                  onClick={() => setAge((a) => Math.max(0, Number(a || 0) - 1))}
                   className="h-full w-10 text-white/70 hover:bg-white/5"
                 >
                   –
@@ -213,7 +225,6 @@ export default function EditUserModal({ open, onClose, user, onSave }) {
           </button>
 
           <button
-            disabled={!canSubmit}
             onClick={() => {
               if (!user?.id) return;
               onSave?.(user.id, {
@@ -224,14 +235,10 @@ export default function EditUserModal({ open, onClose, user, onSave }) {
                 gender,
                 country: country.trim(),
                 city: city.trim(),
-                portraitName,
+                profilePictureUrl: portraitName,
               });
             }}
-            className={`h-10 w-full rounded-lg text-[13px] font-medium text-white sm:w-[320px] ${
-              canSubmit
-                ? "bg-[#0B67CD] hover:brightness-110"
-                : "bg-white/30 cursor-not-allowed"
-            }`}
+            className="h-10 w-full rounded-lg bg-[#0B67CD] text-[13px] font-medium text-white hover:brightness-110 sm:w-[320px]"
           >
             Save Changes
           </button>

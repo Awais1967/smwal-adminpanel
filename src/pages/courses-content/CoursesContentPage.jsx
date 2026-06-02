@@ -14,14 +14,28 @@ import useTableData from "../../hooks/useTableData";
 import useToast from "../../hooks/useToastHook";
 import coursesService from "../../services/courses.service";
 
-const STATUS_OPTIONS = ["Published", "Draft"];
-const CATEGORY_OPTIONS = [
-  "Foundations",
-  "Advanced Techniques",
-  "Leadership",
-  "Marriage",
-  "Parenting",
-];
+const STATUS_OPTIONS = ["Published", "Scheduled", "Draft"];
+
+const getLessonCount = (row) => {
+  if (Array.isArray(row.lessonOutline)) return row.lessonOutline.length;
+  if (Array.isArray(row.lessons)) return row.lessons.length;
+  return Number(row.lessonsCount || row.lessons || 0);
+};
+
+const getVideoLessonCount = (row) => {
+  const lessons = Array.isArray(row.lessonOutline) ? row.lessonOutline : [];
+  if (lessons.length) {
+    return lessons.filter((lesson) =>
+      String(lesson.type || "").toLowerCase().includes("video"),
+    ).length;
+  }
+
+  return String(row.lessonType || row.type || "")
+    .toLowerCase()
+    .includes("video")
+    ? 1
+    : 0;
+};
 
 export default function CoursesContentPage() {
   const toast = useToast();
@@ -44,7 +58,11 @@ export default function CoursesContentPage() {
     () => [
       { key: "title", header: "Course Title" },
       { key: "category", header: "Category" },
-      { key: "lessons", header: "Lessons" },
+      {
+        key: "lessons",
+        header: "Lessons",
+        cell: (r) => getLessonCount(r),
+      },
       {
         key: "status",
         header: "Status",
@@ -71,9 +89,15 @@ export default function CoursesContentPage() {
                 toast.error(error.message);
               }
             }}
-            onEdit={() => {
+            onEdit={async () => {
               setActiveCourse(r);
               setEditOpen(true);
+              try {
+                const course = await coursesService.getById(r.id);
+                setActiveCourse(course);
+              } catch (error) {
+                toast.error(error.message);
+              }
             }}
           />
         ),
@@ -83,13 +107,18 @@ export default function CoursesContentPage() {
   );
 
   const summary = useMemo(() => {
-    const lessons = rows.reduce((sum, row) => sum + Number(row.lessons || 0), 0);
+    const lessons = rows.reduce((sum, row) => sum + getLessonCount(row), 0);
     const categories = new Set(rows.map((row) => row.category).filter(Boolean));
     return {
       lessons,
       categories: categories.size,
-      videos: rows.filter((row) => String(row.type || "").includes("Video")).length,
+      videos: rows.reduce((sum, row) => sum + getVideoLessonCount(row), 0),
     };
+  }, [rows]);
+
+  const categoryOptions = useMemo(() => {
+    const categories = [...new Set(rows.map((row) => row.category).filter(Boolean))];
+    return categories.map((value) => ({ value, label: value }));
   }, [rows]);
 
   const setFilter = useCallback(
@@ -174,7 +203,7 @@ export default function CoursesContentPage() {
         onCountryChange={(value) => setFilter("category", value)}
         countryOptions={[
           { value: "All", label: "All Categories" },
-          ...CATEGORY_OPTIONS.map((value) => ({ value, label: value })),
+          ...categoryOptions,
         ]}
         statusOptions={[
           { value: "All", label: "All" },

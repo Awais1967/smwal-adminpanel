@@ -15,7 +15,6 @@ export default function RequestAccessForm({ copy }) {
   const onSubmit = (e) => {
     e.preventDefault();
     // UI-only: send request via backend then navigate
-    console.log({ fullName, workEmail, reason });
     nav(AUTH_ROUTES.accessSubmitted);
   };
 

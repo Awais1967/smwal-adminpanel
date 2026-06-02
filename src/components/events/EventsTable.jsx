@@ -454,7 +454,7 @@ export default function EventsTable({ defaultRowsPerPage = 6 }) {
               className="h-8 w-8 rounded-md bg-[#0B67CD] text-white hover:brightness-110 disabled:opacity-40"
               disabled={safePage === 1}
             >
-              ‹
+              &lt;
             </button>
 
             {Array.from({ length: Math.min(4, totalPages) }).map((_, i) => {
@@ -475,14 +475,14 @@ export default function EventsTable({ defaultRowsPerPage = 6 }) {
               );
             })}
 
-            {totalPages > 4 && <span className="px-1 text-white/40">…</span>}
+            {totalPages > 4 && <span className="px-1 text-white/40">...</span>}
 
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               className="h-8 w-8 rounded-md bg-[#0B67CD] text-white hover:brightness-110 disabled:opacity-40"
               disabled={safePage === totalPages}
             >
-              ›
+              &gt;
             </button>
           </div>
         </div>

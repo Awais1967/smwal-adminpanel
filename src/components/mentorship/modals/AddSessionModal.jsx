@@ -61,7 +61,11 @@ const TextArea = (props) => (
   />
 );
 
-function Select({ value, onChange, options, placeholder }) {
+function Select({ value, onChange, options, placeholder, loading = false }) {
+  const normalized = options.map((option) =>
+    typeof option === "object" ? option : { value: option, label: option },
+  );
+
   return (
     <div className="relative">
       <select
@@ -70,11 +74,15 @@ function Select({ value, onChange, options, placeholder }) {
         className="h-10 w-full appearance-none rounded-lg border border-white/10 bg-black/30 px-3 pr-9 text-sm text-white/70 outline-none"
       >
         <option value="" className="bg-[#141414] text-white">
-          {placeholder}
+          {loading ? "Loading users..." : placeholder}
         </option>
-        {options.map((o) => (
-          <option key={o} value={o} className="bg-[#141414] text-white">
-            {o}
+        {normalized.map((option) => (
+          <option
+            key={option.value}
+            value={option.value}
+            className="bg-[#141414] text-white"
+          >
+            {option.label}
           </option>
         ))}
       </select>
@@ -103,8 +111,14 @@ function TopicChip({ label, selected, onToggle }) {
   );
 }
 
-export default function AddSessionModal({ isOpen, onClose, onSubmit }) {
-  const [user, setUser] = useState("");
+export default function AddSessionModal({
+  isOpen,
+  loadingUsers = false,
+  onClose,
+  onSubmit,
+  users = [],
+}) {
+  const [userId, setUserId] = useState("");
   const [selectedTopics, setSelectedTopics] = useState([]);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -112,18 +126,18 @@ export default function AddSessionModal({ isOpen, onClose, onSubmit }) {
   const [status, setStatus] = useState("Scheduled");
 
   const canSubmit =
-    user && selectedTopics.length > 0 && date && time && sessionType;
+    userId && selectedTopics.length > 0 && date && time && sessionType;
 
-  const users = useMemo(
-    () => ["Sarah J.", "Martin K.", "Emily R.", "John D.", "Olivia P."],
-    [],
+  const selectedUser = useMemo(
+    () => users.find((userOption) => String(userOption.value) === String(userId)),
+    [userId, users],
   );
-  const types = useMemo(() => ["Remote", "In-person"], []);
+  const types = useMemo(() => ["Remote", "In Person", "Hybrid"], []);
 
   useEffect(() => {
     if (!isOpen) return;
     const id = setTimeout(() => {
-      setUser("");
+      setUserId("");
       setSelectedTopics([]);
       setDate("");
       setTime("");
@@ -176,10 +190,11 @@ export default function AddSessionModal({ isOpen, onClose, onSubmit }) {
           <div>
             <FieldLabel>Select User</FieldLabel>
             <Select
-              value={user}
-              onChange={setUser}
+              value={userId}
+              onChange={setUserId}
               options={users}
-              placeholder="e.g. Sarah J."
+              placeholder={users.length ? "Select user" : "No users found"}
+              loading={loadingUsers}
             />
           </div>
 
@@ -251,8 +266,10 @@ export default function AddSessionModal({ isOpen, onClose, onSubmit }) {
             onClick={() => {
               if (!canSubmit) return;
               onSubmit?.({
-                user1: "—",
-                user2: user,
+                user1Name: "",
+                user2Id: userId,
+                user2: selectedUser?.label || "",
+                user2Name: selectedUser?.label || "",
                 topics: selectedTopics,
                 date,
                 time,

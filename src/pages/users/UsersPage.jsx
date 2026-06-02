@@ -96,7 +96,10 @@ export default function UsersPage() {
         await usersService.create(payload);
         toast.success("User created.");
         setAddOpen(false);
-        table.refresh();
+        table.setSearch("");
+        table.setFilters({ country: "All", status: "All" });
+        table.setPage(1);
+        setTimeout(() => table.refresh(), 0);
       } catch (error) {
         toast.error(error.message);
       }
@@ -107,12 +110,15 @@ export default function UsersPage() {
   const handleUpdate = useCallback(
     async (id, updates) => {
       try {
-        await usersService.update(id, updates);
+        const updatedUser = await usersService.update(id, updates);
+        setActiveUser(updatedUser);
         toast.success("User updated.");
         setEditOpen(false);
         table.refresh();
+        return updatedUser;
       } catch (error) {
         toast.error(error.message);
+        throw error;
       }
     },
     [table, toast],

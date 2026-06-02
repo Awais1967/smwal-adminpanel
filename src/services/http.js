@@ -1,7 +1,8 @@
 import axios from "axios";
+import { ENDPOINTS } from "./endpoints";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
-const MOCK_MODE = !API_URL; // Use mock mode if no API URL is configured
+const MOCK_MODE = !API_URL && import.meta.env.DEV;
 
 export const http = axios.create({
   baseURL: API_URL,
@@ -31,11 +32,7 @@ http.interceptors.response.use(
       const url = config.url;
       const method = (config.method || "get").toLowerCase();
 
-      console.log(`[MOCK] Intercepting ${method.toUpperCase()} ${url}`);
-
-      // Mock login endpoint
-      if (url === "/auth/login" && method === "post") {
-        console.log("[MOCK] Returning mock login response");
+      if (url === ENDPOINTS.auth.login && method === "post") {
         const userData = config.data
           ? typeof config.data === "string"
             ? JSON.parse(config.data)
@@ -59,9 +56,7 @@ http.interceptors.response.use(
         });
       }
 
-      // Mock me endpoint
-      if (url === "/auth/me" && method === "get") {
-        console.log("[MOCK] Returning mock me response");
+      if (url === ENDPOINTS.auth.me && method === "get") {
         return Promise.resolve({
           status: 200,
           statusText: "OK",
@@ -76,9 +71,7 @@ http.interceptors.response.use(
         });
       }
 
-      // Mock logout endpoint
-      if (url === "/auth/logout" && method === "post") {
-        console.log("[MOCK] Returning mock logout response");
+      if (url === ENDPOINTS.auth.logout && method === "post") {
         return Promise.resolve({
           status: 200,
           statusText: "OK",

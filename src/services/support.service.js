@@ -2,6 +2,8 @@ import http from "./http";
 import { ENDPOINTS } from "./endpoints";
 import { flattenTableParams, normalizeListResponse } from "./apiUtils";
 
+const unwrapData = (response) => response?.data ?? response;
+
 const supportService = {
   async list(params) {
     const { data } = await http.get(ENDPOINTS.support, {
@@ -11,18 +13,18 @@ const supportService = {
   },
   async getById(id) {
     const { data } = await http.get(`${ENDPOINTS.support}/${id}`);
-    return data;
+    return unwrapData(data);
   },
   async reply(id, payload) {
     const { data } = await http.post(
       `${ENDPOINTS.support}/${id}/reply`,
       payload,
     );
-    return data;
+    return unwrapData(data);
   },
   async update(id, payload) {
     const { data } = await http.put(`${ENDPOINTS.support}/${id}`, payload);
-    return data;
+    return unwrapData(data);
   },
   async remove(id) {
     const { data } = await http.delete(`${ENDPOINTS.support}/${id}`);

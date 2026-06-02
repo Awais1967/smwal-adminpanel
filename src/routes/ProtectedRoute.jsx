@@ -7,11 +7,11 @@ export default function ProtectedRoute() {
   const { isAuthenticated, booting } = useAuth();
   const location = useLocation();
 
-  // allow short-circuit during development via ?skipLogin=1 or localStorage flag
   const params = new URLSearchParams(location.search);
   const skipLogin =
-    params.get("skipLogin") === "1" ||
-    localStorage.getItem("mih_skip_login") === "1";
+    import.meta.env.DEV &&
+    (params.get("skipLogin") === "1" ||
+      localStorage.getItem("mih_skip_login") === "1");
 
   if (booting) return null; // keep clean; RouteLoader handles page skeletons
   if (skipLogin) return <Outlet />;

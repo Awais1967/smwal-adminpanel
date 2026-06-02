@@ -122,7 +122,7 @@ export default function BasicInfoSection({
             </button>
           </div>
           <Input
-            value={v.passwordMasked || "••••••••"}
+            value={v.passwordMasked || "********"}
             onChange={() => {}}
             placeholder="Password"
             type={showPass ? "text" : "password"}

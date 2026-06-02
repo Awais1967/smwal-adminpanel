@@ -78,7 +78,7 @@ function Pagination({ page, totalPages, onChange }) {
         className="h-8 w-8 rounded-md bg-white/5 text-white/70 hover:bg-white/10"
         aria-label="Previous page"
       >
-        ‹
+        &lt;
       </button>
 
       {pages.map((p) => (
@@ -103,7 +103,7 @@ function Pagination({ page, totalPages, onChange }) {
         className="h-8 w-8 rounded-md bg-white/5 text-white/70 hover:bg-white/10"
         aria-label="Next page"
       >
-        ›
+        {">"}
       </button>
     </div>
   );

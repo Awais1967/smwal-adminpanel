@@ -30,7 +30,7 @@ function Select({ value, onChange, options = [], placeholder, className }) {
 export default function FiltersBar({
   search,
   onSearchChange,
-  searchPlaceholder = "Search…",
+  searchPlaceholder = "Search...",
   filters = [],
   className,
 }) {

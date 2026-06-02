@@ -54,7 +54,7 @@ export default function ConfirmDialog({
               "disabled:opacity-60 disabled:cursor-not-allowed",
             )}
           >
-            {loading ? "Please wait…" : confirmText}
+            {loading ? "Please wait..." : confirmText}
           </button>
         </div>
       </ModalFooter>

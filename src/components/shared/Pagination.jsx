@@ -20,11 +20,11 @@ function buildPages({ page, totalPages, siblings = 1 }) {
 
   const pages = [first];
 
-  if (left > 2) pages.push("…");
+  if (left > 2) pages.push("...");
 
   pages.push(...range(left, right));
 
-  if (right < totalPages - 1) pages.push("…");
+  if (right < totalPages - 1) pages.push("...");
 
   pages.push(last);
 
@@ -65,14 +65,14 @@ export default function Pagination({
       <div className="flex items-center gap-1">
         {pages.map((p, idx) => {
           const isActive = p === page;
-          const isDots = p === "…";
+          const isDots = p === "...";
           if (isDots) {
             return (
               <div
                 key={`dots-${idx}`}
                 className="px-2 text-[12px] text-white/45"
               >
-                …
+                ...
               </div>
             );
           }

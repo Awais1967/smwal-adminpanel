@@ -40,7 +40,11 @@ const Input = (props) => (
   />
 );
 
-function Select({ value, onChange, options, placeholder }) {
+function Select({ value, onChange, options, placeholder, loading = false }) {
+  const normalized = options.map((option) =>
+    typeof option === "object" ? option : { value: option, label: option },
+  );
+
   return (
     <div className="relative">
       <select
@@ -49,11 +53,15 @@ function Select({ value, onChange, options, placeholder }) {
         className="h-10 w-full appearance-none rounded-lg border border-white/10 bg-black/30 px-3 pr-9 text-sm text-white/70 outline-none"
       >
         <option value="" className="bg-[#141414] text-white">
-          {placeholder}
+          {loading ? "Loading users..." : placeholder}
         </option>
-        {options.map((o) => (
-          <option key={o} value={o} className="bg-[#141414] text-white">
-            {o}
+        {normalized.map((option) => (
+          <option
+            key={option.value}
+            value={option.value}
+            className="bg-[#141414] text-white"
+          >
+            {option.label}
           </option>
         ))}
       </select>
@@ -67,26 +75,44 @@ function Select({ value, onChange, options, placeholder }) {
 
 export default function EditSessionModal({
   isOpen,
+  loadingUsers = false,
   onClose,
   session,
   onSubmit,
+  users = [],
 }) {
-  const users = useMemo(
-    () => ["Sarah J.", "Martin K.", "Emily R.", "John D.", "Olivia P."],
-    [],
-  );
-  const types = useMemo(() => ["Remote", "In-person"], []);
-
   const [user2, setUser2] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [sessionType, setSessionType] = useState("");
   const [status, setStatus] = useState("Scheduled");
 
+  const types = useMemo(() => ["Remote", "In Person", "Hybrid"], []);
+  const userOptions = useMemo(() => {
+    const options = [...users];
+    const currentId = session?.user2Id;
+
+    if (
+      currentId &&
+      !options.some((option) => String(option.value) === String(currentId))
+    ) {
+      options.push({
+        value: currentId,
+        label: session?.user2 || session?.user2Name || "Current user",
+      });
+    }
+
+    return options;
+  }, [session, users]);
+  const selectedUser = useMemo(
+    () => userOptions.find((option) => String(option.value) === String(user2)),
+    [user2, userOptions],
+  );
+
   useEffect(() => {
     if (!isOpen) return;
     const vals = {
-      user2: session?.user2 || "",
+      user2: session?.user2Id || "",
       date: session?.date || "",
       time: session?.time || "",
       sessionType: session?.sessionType || "",
@@ -141,8 +167,9 @@ export default function EditSessionModal({
             <Select
               value={user2}
               onChange={setUser2}
-              options={users}
-              placeholder="Select user"
+              options={userOptions}
+              placeholder={userOptions.length ? "Select user" : "No users found"}
+              loading={loadingUsers}
             />
           </div>
 
@@ -197,7 +224,9 @@ export default function EditSessionModal({
             onClick={() => {
               if (!canSubmit) return;
               onSubmit?.({
-                user2,
+                user2Id: user2,
+                user2: selectedUser?.label || "",
+                user2Name: selectedUser?.label || "",
                 date,
                 time,
                 sessionType,

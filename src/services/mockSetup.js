@@ -5,5 +5,4 @@
 export function setupMockAdapter() {
   // Mock adapter is configured in http.js via interceptors
   // This function serves as a placeholder for any additional setup needed
-  console.log("Mock API adapter initialized");
 }

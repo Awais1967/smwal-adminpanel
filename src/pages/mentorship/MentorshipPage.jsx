@@ -1,5 +1,5 @@
 // src/pages/mentorship/MentorshipPage.jsx
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FiCalendar, FiCheckCircle, FiXCircle, FiClock } from "react-icons/fi";
 import MetricCard from "../../components/shared/MetricCard";
 import DataTable from "../../components/shared/DataTable/DataTable";
@@ -13,9 +13,10 @@ import DeleteSessionModal from "../../components/mentorship/modals/DeleteSession
 import useTableData from "../../hooks/useTableData";
 import useToast from "../../hooks/useToastHook";
 import mentorshipService from "../../services/mentorship.service";
+import usersService from "../../services/users.service";
 
 const STATUS_OPTIONS = ["Scheduled", "Completed", "Cancelled"];
-const SESSION_TYPE_OPTIONS = ["Remote", "In-person"];
+const SESSION_TYPE_OPTIONS = ["Remote", "In Person", "Hybrid"];
 
 function normalizeSession(session) {
   const topic = session.topic || (session.topics || []).join(", ");
@@ -35,6 +36,8 @@ export default function MentorshipPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [userOptions, setUserOptions] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
 
   const fetchSessions = useCallback(async (params) => {
     const data = await mentorshipService.list(params);
@@ -48,6 +51,27 @@ export default function MentorshipPage() {
   });
 
   const rows = table.items;
+
+  const loadUsers = useCallback(async () => {
+    setUsersLoading(true);
+    try {
+      const data = await usersService.list({ page: 1, pageSize: 100 });
+      setUserOptions(
+        data.items.map((user) => ({
+          value: user.id,
+          label: [user.name, user.email].filter(Boolean).join(" - "),
+        })),
+      );
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setUsersLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
   const columns = useMemo(
     () => [
@@ -216,15 +240,19 @@ export default function MentorshipPage() {
 
       <AddSessionModal
         isOpen={createOpen}
+        loadingUsers={usersLoading}
         onClose={() => setCreateOpen(false)}
         onSubmit={handleCreate}
+        users={userOptions}
       />
 
       <EditSessionModal
         isOpen={editOpen}
+        loadingUsers={usersLoading}
         onClose={() => setEditOpen(false)}
         session={activeRow}
         onSubmit={handleUpdate}
+        users={userOptions}
       />
 
       <ViewSessionModal

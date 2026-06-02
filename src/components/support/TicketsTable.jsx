@@ -95,7 +95,7 @@ function Pagination({ page, pageCount, onChange }) {
           </button>
         ))}
         {pageCount > pages.length && (
-          <span className="px-1 text-white/50">…</span>
+          <span className="px-1 text-white/50">...</span>
         )}
       </div>
 

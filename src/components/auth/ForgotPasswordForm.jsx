@@ -20,7 +20,7 @@ export default function ForgotPasswordForm({ copy }) {
     setLoading(true);
     try {
       await authService.forgotPassword({ email });
-      nav(AUTH_ROUTES.resetPassword);
+      nav(AUTH_ROUTES.resetPassword, { state: { email } });
     } catch (err) {
       setError(err.message);
     } finally {
